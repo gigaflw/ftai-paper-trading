@@ -1,1 +1,7 @@
-{ "meta": { "title": "Paper Trading", "description": "Local A-share paper trading with orders, positions and review." } }
+{
+  "meta": {
+    "title": "Paper Trading",
+    "description": "A-share paper trading: local ledger of fills and positions; multiple accounts; trade, position, order and review views; futures via model tools. FTShare quotes; ledger restored after restart.",
+    "data": "your paper-trading ledgers"
+  }
+}
