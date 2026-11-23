@@ -1,0 +1,537 @@
+/*
+ * 模拟交易界面的专属样式：颜色与圆角只消费公开设计 token（packages/plugin-sdk/src/tokens.ts），
+ * 类名以 `paper-trading-` 前缀隔开。应用样式表会扫描一方插件的界面一半，通用排版优先用 Tailwind 类。
+ */
+
+.paper-trading-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--background);
+  color: var(--foreground);
+}
+
+.paper-trading-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 20px 8px;
+}
+
+.paper-trading-header-text {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.paper-trading-subtitle {
+  font-size: 13px;
+  color: var(--muted-foreground);
+}
+
+.paper-trading-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.paper-trading-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  padding: 2px 8px;
+  font-size: 12px;
+  color: var(--muted-foreground);
+  background: var(--muted);
+  border-radius: var(--radius);
+}
+
+.paper-trading-badge[data-state='live'] {
+  color: var(--success);
+}
+
+.paper-trading-badge[data-state='signed-out'],
+.paper-trading-badge[data-state='not-allowed'],
+.paper-trading-badge[data-state='unavailable'] {
+  color: var(--warning);
+}
+
+.paper-trading-stats {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  padding: 0 20px 12px;
+}
+
+/* 窄窗口下退成三列，避免数字被挤成换行。 */
+@media (max-width: 1100px) {
+  .paper-trading-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.paper-trading-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--surface-radius);
+}
+
+.paper-trading-stat span {
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+
+.paper-trading-stat strong {
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+.paper-trading-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  padding: 0 20px 20px;
+  gap: 12px;
+}
+
+.paper-trading-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--surface-radius);
+  overflow: hidden;
+  /* 交易区按主列实际宽度决定单/双列，右栏拖宽时不会把报价卡挤扁。 */
+  container-type: inline-size;
+}
+
+.paper-trading-tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.paper-trading-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.paper-trading-form {
+  /* 控件统一高度：输入框、分段控件、行内查询按钮、底部操作按钮都对齐到它。 */
+  --paper-trading-control-height: 32px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+
+.paper-trading-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+
+.paper-trading-field > span,
+.paper-trading-field > label {
+  line-height: 16px;
+}
+
+/* 代码行独占整行：输入框与「查询」同高并排，不再上下叠。 */
+.paper-trading-span-2 {
+  grid-column: 1 / -1;
+}
+
+.paper-trading-form input {
+  height: var(--paper-trading-control-height);
+}
+
+.paper-trading-symbol-row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.paper-trading-symbol-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.paper-trading-query {
+  flex: 0 0 auto;
+  height: var(--paper-trading-control-height);
+  padding: 0 14px;
+}
+
+/* 方向与类型共用：外框是一整个控件，两个选项等分宽度，高度与输入框一致。 */
+.paper-trading-segmented {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 2px;
+  height: var(--paper-trading-control-height);
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--muted);
+}
+
+.paper-trading-segmented-option {
+  min-width: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.paper-trading-segmented-option:hover {
+  color: var(--foreground);
+}
+
+.paper-trading-segmented-option[aria-pressed='true'] {
+  background: var(--card);
+  color: var(--foreground);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
+}
+
+.paper-trading-segmented-option:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+}
+
+/* 市价时常驻的限价占位：不可输入，但保持行宽与行高稳定。 */
+.paper-trading-form input:disabled {
+  background: var(--muted);
+  color: var(--muted-foreground);
+  cursor: not-allowed;
+}
+
+.paper-trading-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  grid-column: 1 / -1;
+}
+
+.paper-trading-actions button {
+  height: var(--paper-trading-control-height);
+  padding: 0 16px;
+}
+
+.paper-trading-trade {
+  display: grid;
+  grid-template-columns: minmax(0, 380px) minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.paper-trading-form-card {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.paper-trading-trade-side {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.paper-trading-quote,
+.paper-trading-preview {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.paper-trading-form-card {
+  padding: 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--surface-inner-radius);
+}
+
+@container (max-width: 760px) {
+  .paper-trading-trade {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.paper-trading-trade-side {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.paper-trading-quote,
+.paper-trading-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--surface-inner-radius);
+  background: var(--muted);
+}
+
+.paper-trading-quote-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.paper-trading-quote-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.paper-trading-quote-body > span:first-child {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.paper-trading-preview > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+
+.paper-trading-preview strong {
+  font-size: 14px;
+  color: var(--foreground);
+}
+
+.paper-trading-rail {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--surface-radius);
+}
+
+/* 主列与 K 线栏之间的拖动条：命中区 8px，视觉只有 2px 线条。 */
+.paper-trading-rail-resizer {
+  flex: 0 0 8px;
+  margin: 0 -6px;
+  cursor: col-resize;
+  background: linear-gradient(to right, transparent 3px, var(--border) 3px, var(--border) 5px, transparent 5px);
+  border-radius: 2px;
+}
+
+.paper-trading-rail-resizer:hover,
+.paper-trading-page.is-resizing .paper-trading-rail-resizer {
+  background: linear-gradient(to right, transparent 3px, var(--ring) 3px, var(--ring) 5px, transparent 5px);
+}
+
+/* 拖动期间全局禁止选中与改变光标，避免指针离开分隔条就失去反馈。 */
+.paper-trading-page.is-resizing {
+  user-select: none;
+  cursor: col-resize;
+}
+
+.paper-trading-rail-collapsed {
+  align-items: center;
+  gap: 10px;
+}
+
+.paper-trading-rail-label {
+  writing-mode: vertical-rl;
+  letter-spacing: 2px;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+
+.paper-trading-rail-toggle {
+  align-self: flex-end;
+}
+
+.paper-trading-rail-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.paper-trading-rail-chart {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+}
+
+.paper-trading-rail-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  text-align: center;
+}
+
+.paper-trading-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 32px 12px;
+  font-size: 13px;
+  color: var(--muted-foreground);
+}
+
+.paper-trading-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--warning);
+  background: var(--muted);
+  border-radius: var(--radius);
+}
+
+.paper-trading-table-wrap {
+  overflow-x: auto;
+}
+
+.paper-trading-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.paper-trading-table th,
+.paper-trading-table td {
+  padding: 6px 8px;
+  text-align: left;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--border);
+}
+
+.paper-trading-table th {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted-foreground);
+}
+
+.paper-trading-table .is-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.paper-trading-chart {
+  padding: 12px;
+  color: var(--primary);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--surface-inner-radius);
+}
+
+.paper-trading-chart svg {
+  display: block;
+  width: 100%;
+  height: 160px;
+}
+
+.paper-trading-mono {
+  font-variant-numeric: tabular-nums;
+}
+
+.paper-trading-note {
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+
+.paper-trading-error-text {
+  width: 100%;
+  font-size: 12px;
+  color: var(--destructive);
+}
+
+.paper-trading-tag {
+  padding: 1px 6px;
+  font-size: 11px;
+  color: var(--muted-foreground);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.is-up {
+  color: var(--market-up);
+}
+
+.is-down {
+  color: var(--market-down);
+}
+
+/* 三方插件不能依赖应用的 Tailwind 扫描；图标尺寸用本插件自己的类。 */
+.paper-trading-icon {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+.paper-trading-icon-lg {
+  width: 20px;
+  height: 20px;
+  flex: none;
+}
+
+.paper-trading-header-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.paper-trading-account-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.paper-trading-select {
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--background);
+  color: var(--foreground);
+  font-size: 12px;
+}
+
+.paper-trading-select:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+}

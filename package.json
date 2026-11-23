@@ -1,0 +1,70 @@
+{
+  "name": "plugin-paper-trading",
+  "description": "FtAi Desktop 模拟盘插件：本地事件账本的 A 股/期货模拟交易（交易 / 持仓 / 订单 / 复盘），行情按 FTShare 短期令牌接入。正式 npm scope 待协商（@ftai/plugin-paper-trading 或 @ftai-plugin/paper-trading），当前先用占位包名。",
+  "version": "0.6.0",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./types": {
+      "types": "./lib/types.d.ts",
+      "default": "./lib/types.js"
+    },
+    "./remote": {
+      "types": "./lib/remote.d.ts",
+      "default": "./lib/remote.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "locale",
+    "README.md"
+  ],
+  "ftai": {
+    "contract": "^2.5.0",
+    "host": "./lib/index.js",
+    "capabilities": [
+      "ftshare.token"
+    ],
+    "client": {
+      "entry": "./lib/client.js",
+      "external": [
+        "@ftai/client-app",
+        "@ftai/client-react"
+      ]
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json && ftai-plugin-remote && tsc -p tsconfig.client.json && vite build",
+    "test:ui": "node tests/e2e/ui-smoke.mjs"
+  },
+  "devDependencies": {
+    "@ftai/plugin-sdk": "^2.5.0",
+    "@tabler/icons-react": "3.46.0",
+    "@types/node": "^24.9.0",
+    "@types/react": "18.3.31",
+    "@types/react-dom": "18.3.7",
+    "cordis": "4.0.0-rc.12",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "typescript": "~6.0.3",
+    "vite": "^8.3.6",
+    "@playwright/test": "1.61.0"
+  },
+  "peerDependencies": {
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "decimal.js": "^10.6.0"
+  }
+}

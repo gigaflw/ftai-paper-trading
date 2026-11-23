@@ -1,0 +1,64 @@
+import type { AccountView, OrderView, PreviewView, ReviewView } from '../contract.ts'
+import { formatSymbol } from '../core/symbol.ts'
+
+function money(cents: number): string {
+  return (cents / 100).toFixed(2)
+}
+
+export function renderAccount(account: AccountView): string {
+  const lines = [
+    `账户 ${account.accountId} · ${account.tradeDate}${account.blocked ? ' · 已锁定' : ''}`,
+    `总资产 ${money(account.equity * 100)} · 现金 ${money(account.cash * 100)} · 盈亏 ${account.pnl >= 0 ? '+' : ''}${account.pnl.toFixed(2)} (${(account.pnlPct * 100).toFixed(2)}%)`,
+  ]
+  if (account.blocked) {
+    lines.push(`锁定原因：${account.blockedReason ?? '未记录'}`)
+    if (account.ledgerPath !== undefined) lines.push(`账本：${account.ledgerPath}`)
+    lines.push('可用 paper_ledger 从备份恢复；也可 paper_stock_account reset=true, confirm=true（会先备份）')
+  }
+  if (account.positions.length === 0) lines.push('无持仓')
+  else {
+    lines.push('持仓：')
+    for (const position of account.positions) {
+      lines.push(`- ${formatSymbol(position.symbol, position.name)} ${position.qty} 股（可卖 ${position.available}）成本 ${position.avgCost.toFixed(2)} 现价 ${position.lastPrice?.toFixed(2) ?? '—'}`)
+    }
+  }
+  return lines.join('\n')
+}
+
+export function renderPreview(preview: PreviewView): string {
+  const lines = [
+    `预览：${preview.side === 'buy' ? '买入' : '卖出'} ${formatSymbol(preview.symbol, preview.quote?.name)} ${preview.qty} 股 @ ${preview.price.toFixed(2)}`,
+    `金额 ${money(preview.amountCents)} · 费用 ${money(preview.totalFeesCents)}（佣金 ${money(preview.commissionCents)}，印花税 ${money(preview.stampCents)}，过户费 ${money(preview.transferCents)}）`,
+    `成交后现金 ${money(preview.cashAfterCents)}`,
+  ]
+  if (preview.warnings.length > 0) lines.push(`提示：${preview.warnings.join('；')}`)
+  return lines.join('\n')
+}
+
+export function renderOrder(order: OrderView): string {
+  const status: Record<OrderView['status'], string> = {
+    queued: '已排队',
+    pending: '挂单中',
+    partially_filled: '部分成交',
+    filled: '已成交',
+    canceled: '已撤单',
+    rejected: '已拒绝',
+    expired: '已过期',
+  }
+  const parts = [`${status[order.status]}：${order.side === 'buy' ? '买入' : '卖出'} ${formatSymbol(order.symbol, order.name)} ${order.qty} 股`]
+  if (order.type === 'limit' && order.limitPrice !== undefined) parts.push(`限价 ${order.limitPrice.toFixed(2)}`)
+  // A queued order is not "waiting for a price to cross": it has no matching
+  // window yet, so say when it will be tried.
+  if (order.status === 'queued') parts.push('下一交易时段开盘后撮合')
+  if (order.fillPrice !== undefined) parts.push(`成交价 ${order.fillPrice.toFixed(2)}`)
+  if (order.reason !== undefined) parts.push(`原因 ${order.reason}`)
+  if (order.note !== undefined) parts.push(`备注 ${order.note}`)
+  return parts.join(' · ')
+}
+
+export function renderReview(review: ReviewView): string {
+  return [
+    `复盘 ${review.days} 天 · 成交 ${review.tradeCount} 笔（买 ${review.buyCount} / 卖 ${review.sellCount}）`,
+    `已实现盈亏 ${review.realizedPnl.toFixed(2)} · 费用合计 ${review.totalFees.toFixed(2)} · 最大回撤 ${(review.maxDrawdownPct * 100).toFixed(2)}%`,
+  ].join('\n')
+}
