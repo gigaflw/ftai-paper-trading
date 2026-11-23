@@ -5,9 +5,11 @@
 | 文件 | 来源步骤（`tests/e2e/ui-smoke.mjs` 的截图） |
 |---|---|
 | `trade.png` | `03-default-quote`：默认标的自动加载、报价与日 K |
-| `trade-form.png` | `02b-form`：交易表单与限价占位 |
 
 当前版本：0.6.0，FtAi Desktop 0.14.14，2026-11-23。
+
+README 里用的是仓库绝对地址（`raw.githubusercontent.com` 的 `main` 分支），不是相对路径：npm 包页与
+插件详情页对相对路径的处理不一致，绝对 https 两边都能显示。
 
 更新：
 

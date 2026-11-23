@@ -9,7 +9,7 @@ import type { MessageScope } from '@ftai/plugin-sdk/features'
 import { IconAlertTriangle, IconChartCandle, IconChevronLeft, IconChevronRight, IconRefresh } from '@tabler/icons-react'
 import type {
   Bar, DataSourceView, OrderDraft, OrderView, PositionView, PreviewView, Quote, ReviewView, TabKey,
-} from 'plugin-paper-trading/types'
+} from '@clrstn2830h/plugin-paper-trading/types'
 import { canonicalId, type Board } from './state.ts'
 
 const TABS: readonly TabKey[] = ['trade', 'positions', 'orders', 'review']

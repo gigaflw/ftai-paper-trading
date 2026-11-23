@@ -2,9 +2,9 @@
  * 前后端共用的边界类型。
  *
  * 业务视图直接复用共享层契约（与 dsh 版插件同一份 `contract/`），界面只经
- * `plugin-paper-trading/types` 以 `import type` 引用；这里不再重复定义账户、
+ * `@clrstn2830h/plugin-paper-trading/types` 以 `import type` 引用；这里不再重复定义账户、
  * 委托、持仓、复盘等形状，只补平台自己的数据源状态与页面枚举。
- * @module plugin-paper-trading/types
+ * @module @clrstn2830h/plugin-paper-trading/types
  */
 
 export type {

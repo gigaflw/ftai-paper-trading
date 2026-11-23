@@ -17,7 +17,7 @@ DOM 断言。数据是走查目录里的真实本地账本；行情来自 FTShar
      --remote-debugging-port=0
    ```
 
-2. 应用里登录账号，并安装/升级 `plugin-paper-trading`；首次打开面板时授权 FTShare 数据。
+2. 应用里登录账号，并安装/升级 `@clrstn2830h/plugin-paper-trading`；首次打开面板时授权 FTShare 数据。
 3. 跑测试时不要同时操作这个窗口（脚本会切标签、下单到走查账本）。
 
 ## 运行

@@ -5,7 +5,7 @@
  * `ctx.ftshare.accessToken()`：每次调用开新会话并带 `Authorization: Bearer <令牌>`，
  * 不缓存会话与令牌。四态归一、载荷观测与失败分类沿用 dsh 版插件
  * `@dsh-ft/dsh-fft-ftshare` 的规则：`empty` 必须有正向证据，401/403 才算 `denied`。
- * @module plugin-paper-trading/platform/ftshare-client
+ * @module @clrstn2830h/plugin-paper-trading/platform/ftshare-client
  */
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'

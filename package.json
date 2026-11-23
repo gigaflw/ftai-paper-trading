@@ -1,6 +1,6 @@
 {
-  "name": "plugin-paper-trading",
-  "description": "FtAi Desktop 模拟盘插件：本地事件账本的 A 股/期货模拟交易（交易 / 持仓 / 订单 / 复盘），行情按 FTShare 短期令牌接入。正式 npm scope 待协商（@ftai/plugin-paper-trading 或 @ftai-plugin/paper-trading），当前先用占位包名。",
+  "name": "@clrstn2830h/plugin-paper-trading",
+  "description": "FtAi Desktop 模拟交易插件：本地事件账本的 A 股 / 期货模拟交易（交易、持仓、订单、复盘），行情按 FTShare 短期令牌接入。",
   "version": "0.6.0",
   "type": "module",
   "main": "lib/index.js",
@@ -60,6 +60,19 @@
     "react-dom": "18.3.1"
   },
   "license": "MIT",
+  "author": "Ben <ben@ft.tech>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gigaflw/ftai-paper-trading.git"
+  },
+  "keywords": [
+    "ftai",
+    "ftai-plugin",
+    "paper-trading",
+    "simulation",
+    "stock",
+    "futures"
+  ],
   "publishConfig": {
     "access": "public"
   },

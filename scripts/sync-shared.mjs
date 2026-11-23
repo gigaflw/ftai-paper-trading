@@ -81,6 +81,7 @@ if (check) {
   }
 } else {
   const commit = execFileSync('git', ['-C', repo, 'rev-parse', tag], { encoding: 'utf8' }).trim()
-  writeFileSync(manifestPath, `${JSON.stringify({ repo, tag, commit, paths: SHARED_PATHS, files }, null, 2)}\n`)
+  const repoLabel = repo.startsWith(homedir()) ? repo.replace(homedir(), '~') : repo
+  writeFileSync(manifestPath, `${JSON.stringify({ repo: repoLabel, tag, commit, paths: SHARED_PATHS, files }, null, 2)}\n`)
   console.log(`已同步 ${listed.length} 个文件（改动 ${changed} 个）；来源 ${repo}@${tag} (${commit.slice(0, 10)})`)
 }

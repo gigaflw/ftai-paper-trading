@@ -1,4 +1,4 @@
-# @ftai/plugin-paper-trading 开发说明
+# @clrstn2830h/plugin-paper-trading 开发说明
 
 这份是给开发者看的，不随插件发布（不在 package.json 的 `files` 里）。插件市场的详情页显示的是 `README.md`，发布前把它换成你的插件说明。
 

@@ -1,98 +1,84 @@
-# 模拟交易（FtAi Desktop 插件）
+# 模拟交易 · FtAi Desktop 插件
 
-本地事件账本的 A 股 / 期货模拟交易插件：交易、持仓、订单、复盘，以及给模型的 `paper_*` 工具。
-宿主一半跑在 FtAi Desktop 的插件进程里，界面一半是 React 视图；数据经 FTShare 短期令牌接入。
+[![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![FtAi Desktop](https://img.shields.io/badge/FtAi%20Desktop-契约%202.5.0%2B-2f6fed)](#兼容与边界)
+[![npm](https://img.shields.io/npm/v/@clrstn2830h/plugin-paper-trading)](https://www.npmjs.com/package/@clrstn2830h/plugin-paper-trading)
 
-> 包名暂用 `plugin-paper-trading`（占位，未发布）。正式 npm scope 待与 FtAi 协商，候选
-> `@ftai/plugin-paper-trading` 或 `@ftai-plugin/paper-trading`；定名后包名与代码里的
-> `/types`、`/remote` 引用会一起改，发布第一版前不要安装公开版本。
+不开证券账户，也能在 FtAi Desktop 里开一个 A 股 / 商品期货模拟账户：行情走 FTShare，账本只存本机；
+插件把账本的 16 个操作注册成模型工具，会话里可以让模型下单、查持仓、做复盘。
 
-## 当前状态（0.6.0）
+![交易页：填代码、方向、数量，成本与成交后现金即时算出；右栏常驻日 K](https://raw.githubusercontent.com/gigaflw/ftai-paper-trading/main/docs/screenshots/trade.png)
 
-- 业务层与 dsh 版插件 **v0.8.0 同源**：`core/`、`contract/`、`store/`、`service/`、`data/`、
-  `agent/` 按 tag 原样同步（见 `SHARED.md`）；事件账本、多账户、股票与期货两套服务。
-- 宿主一半：Remote 命名空间 `ftaiPaperTrading`，对界面暴露与 dsh 面板一致的
-  `rpc(endpoint, payload, account)`；18 个 `paper_*` / `paper_ledger` / `paper_futures_*` 工具注册。
-- 账本位置：`ctx.localInstall.dataDir/paper-trading/<account>/events.jsonl`。
-- 数据：声明能力 `ftshare.token`，用户点「连接 FTShare 数据」后取短期令牌，以
-  `Authorization: Bearer` 访问 FTShare 网关；插件不保存令牌，也不接触 API Key。
-- 界面：账户切换、交易/持仓/订单/复盘四个标签；五张统计卡同排；交易表单方向/类型共用分段控件、
-  控件统一 32px；右栏日 K 用应用公开的 `StockChart`（可拖宽 220–720px、可折叠）；打开自动加载
-  默认标的 `600519`；复盘用账本逐日快照画权益曲线。
-- 面板 e2e：真实应用里 10 步全过（布局 / 默认行情 / 查询 / 预览 / 下单 / 持仓订单复盘 /
-  非法代码 / K 线拖动折叠），页面错误 0。
+> 交易 / 持仓 / 订单 / 复盘 · 股票与期货两套账本 · 16 个模型工具 · 重启不丢账本
 
-## 界面截图
+## 装上之后
 
-![交易视图：默认标的、报价与日 K](docs/screenshots/trade.png)
+- 侧栏多一个**模拟交易**入口：账户切换加交易、持仓、订单、复盘四个标签，五张账户统计卡同排。
+- 插件给模型注册 **16 个工具**：`paper_stock_*`、`paper_futures_*`、`paper_account`、`paper_ledger`，会话里由模型按需调用。
+- 面板右栏是 FtAi 自带的**日 K**（可拖宽 220–720px、可折叠），打开自动加载 `600519`。
+- 首次取行情时请你**授权 FTShare 数据**；拒绝也不影响浏览界面，只是没有行情和预览。
 
-![交易表单：方向/类型分段控件与限价占位](docs/screenshots/trade-form.png)
+## 功能
 
-截图是 `tests/e2e/ui-smoke.mjs` 跑出来的界面手工挑选、缩放后提交的文档图；测试运行产物不提交，
-说明见 `docs/screenshots/README.md`。
+- **下单前先算清**：填完代码、方向、数量，预估成交价、佣金、印花税、过户费、成交后现金和最大可买一起刷新，没有单独的查价、预览步骤。
+- **股票与期货各一套规则**：股票按整股、T+1 可卖、涨跌停、停牌、当日有效限价单；期货按手数、保证金、当日平仓、15:30 收盘价结算与风险度（期货暂无界面，见「兼容与边界」）。
+- **多股票账户 + 独立期货账户**：默认股票账户首次打开自动创建，想加几个加几个，各自独立账本、起始资金与复盘；期货账户独立记账，本版只能通过模型工具操作。
+- **账本也注册给模型**：16 个工具覆盖下单、撤单、查持仓、复盘与账户管理；调用时用 `account` 参数指定账户，不传就是默认账户。
+- **复盘能对上账**：权益曲线、最大回撤、成交统计、出入金，收益已剔除出入金；曲线按账本逐日快照画。
+- **账本在本机**：`paper-trading/<账户>/events.jsonl` 事件账本，重启自动恢复，重置前自动备份。
+- **不用填 API Key**：插件声明 `ftshare.token` 能力，向宿主取**短期令牌**（约 30 分钟）访问 FTShare；插件不保存令牌，也不接触 API Key。
 
-## 目录
+## 安装
+
+在 FtAi Desktop 里：侧栏「插件」→ 右上「添加」→「按包名安装」，填包名和版本：
 
 ```
-src/
-  core/ contract/ store/ service/ data/ agent/   # 与 dsh 版同步的共享层
-  platform/ftshare-client.ts                     # ctx.ftshare 令牌 → MCP Bearer 客户端
-  index.ts                                       # 宿主一半：装配、Remote、工具、调度
-  client/                                        # 界面一半（React）
-  types.ts                                       # 边界类型（再导出契约）
-tests/e2e/                                       # 面板 CDP 测试
-scripts/sync-shared.mjs                          # 从 dsh 版插件同步共享层
-shared-manifest.json                             # 同步来源 tag/commit/逐文件 sha256
+@clrstn2830h/plugin-paper-trading@0.6.0
 ```
 
-## 构建
+- 只写包名会装「发布满 24 小时」的最新版；刚发布的版本要立刻试，请写 `包名@版本`。
+- 插件暂未被插件市场收录，安装时会出现「未上架的插件」警告：列出包名、版本、npm 发布者与声明的能力，勾选「我已了解上述风险」后继续。
+- 装完打开面板，第一次取行情时会弹授权（仅允许本次 / 始终允许此插件 / 拒绝，最长 60 秒）。
 
-```bash
-pnpm install
-pnpm build            # tsc → ftai-plugin-remote → tsc client → vite build
-```
+## 上手三步
 
-依赖已改为从 npm 安装的 `@ftai/plugin-sdk@^2.5.0`，不再依赖桌面端源码；构建产物在 `lib/`。
+1. 打开**模拟交易**，账户自动建好：股票 100 万、期货 100 万模拟资金；账户头的「资金」随时出入金。
+2. 交易页填代码（如 `000001`）、方向、数量、市价或限价，确认预览后提交；没成交的限价单挂在「订单」里可撤。
+3. 「复盘」看权益、回撤与成交，「持仓」看可卖数量与浮盈；随时可重置账户并重选起始资金（重置前自动备份）。
 
-## 本机试装
+### 让模型替你操作
 
-```bash
-# 1) 本机 npm 源（首次会下载 verdaccio）
-npx verdaccio --listen 4873
+插件只负责把工具注册给模型；是否调用、怎么组织回答由模型和会话决定。把需求说清楚时，它会调用对应工具，例如：
 
-# 2) 发布到本机源
-pnpm build
-pnpm publish --registry http://127.0.0.1:4873 --no-git-checks
+- 「市价买 200 股 000001，备注：测试 T+1」
+- 「复盘我这周的股票交易」
+- 「把默认账户重置成 50 万」
 
-# 3) 带本机源启动已安装的 FtAi Desktop（隔离走查目录）
-FTAI_PLUGIN_REGISTRY=http://127.0.0.1:4873 \
-FTAI_HOST_HOME=$HOME/ftai-walkthrough/paper-trading/host \
-FTAI_DEV_FILE_CREDENTIALS=1 \
-  "/Applications/FtAi Desktop.app/Contents/MacOS/FtAi Desktop" \
-  --user-data-dir=$HOME/ftai-walkthrough/paper-trading/userData \
-  --remote-debugging-port=0
+多账户时它会用 `account` 参数指定账户，`paper_account` 可以先列出账户。
 
-# 4) 应用「插件」页 → 添加 → 按包名安装 plugin-paper-trading@0.6.0
-```
+## 行情与授权
 
-首次打开面板时授权 FTShare 数据（仅允许本次 / 始终允许此插件 / 拒绝）。
+- 插件声明能力 `ftshare.token`：向宿主取当前用户的 FTShare **短期令牌**，以 `Authorization: Bearer` 访问 FTShare 网关，REST 与 MCP 同一受众。
+- 令牌约 30 分钟有效，插件每次用前现取、**不保存**；授权按「插件 × FtAi 用户」记录。
+- 数据源四态（可用 / 无数据 / 被拒绝 / 失败）显示在面板顶部，失败时说明原因并给重试入口。
 
-## 发布到 npm
+## 数据与隐私
 
-- 先确定 scope 并改 `package.json` 的 `name`（同时全仓替换 `/types`、`/remote` 的引用）。
-- `pnpm publish --access public`；新版本有 24 小时冷却，需要立刻安装时写 `包名@版本`。
-- 公开远端发布不在本机自动化范围内，需要人工确认后执行。
+- 账本只在 FtAi 数据目录的 `paper-trading/` 下，一账户一份事件账本；不上传任何服务器。
+- 重置前先备份到同目录 `backups/`；账户被故障锁定时面板给出账本路径，方便导出排查。
+- 联网只到 FTShare 网关（取行情），没有遥测。
+- 仅用于模拟与研究，不含实盘，不构成投资建议。
 
-## 面板 e2e
+## 兼容与边界
 
-```bash
-node tests/e2e/ui-smoke.mjs --walkthrough ~/ftai-walkthrough/paper-trading
-```
+- 需要 FtAi Desktop **契约 ≥ 2.5.0**；插件是双半结构（宿主 `lib/index.js` + 界面 `lib/client.js`），`@ftai/plugin-sdk` 从 npm 安装，React 由应用提供。
+- 业务层与 DeepSeek Harness 版 [dsh-fft-paper-trading](https://github.com/gigaflw/dsh-fft-paper-trading) 同源，按 tag 同步；来源 commit 与逐文件 sha256 记在 `shared-manifest.json`。
+- 期货只支持商品期货（上期所 / 能源中心 / 大商所 / 郑商所 / 广期所）日盘下单；夜盘、股指与国债期货、交割与移仓不在本版范围。
+- 尚无期货独立页面、账户对比页与批量按权重下单；期货交易可以先通过对话工具完成。
+- 股票市价单按最新价一次成交、不拆单；限价单不穿过则当日有效挂单；非连续交易时段下的单排队到下一时段成交。
 
-应用需带调试口启动、已登录并授权 FTShare；测试会向走查账本真实下单。详见 `tests/e2e/README.md`。
+## 反馈
 
-## 后续
+有问题或建议，开个 [Issue](https://github.com/gigaflw/ftai-paper-trading/issues)。贴日志前请去掉令牌、账户数据与账本路径。
 
-1. 补多账户切换之外的对比页、期货页面与批量下单 UI。
-2. 复盘曲线目前只有日快照单点时会退化，需要补空态；「全部」区间的 i18n key 也要修。
-3. 共享层跟版：`node scripts/sync-shared.mjs --tag <dsh 版新 tag>` 后重新构建。
+本项目以 [MIT](LICENSE) 许可开源。

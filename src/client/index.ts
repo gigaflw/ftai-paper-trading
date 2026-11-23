@@ -4,14 +4,14 @@
  * 界面走与 dsh 面板同一套 RPC 端点（`rpc(endpoint, payload, account)`），
  * 另用宿主一半的 `connectData`/`dataSource` 管理 FTShare 令牌授权。
  * 注册与绑定都挂在调用方作用域上，插件停用或热替换时自动撤销。
- * @module plugin-paper-trading/client
+ * @module @clrstn2830h/plugin-paper-trading/client
  */
 
 import type { Context } from 'cordis'
 import { preferences } from '@ftai/plugin-sdk/app'
 import type {} from '@ftai/plugin-sdk/features'
 import type {} from '@ftai/plugin-sdk/remote'
-import type {} from 'plugin-paper-trading/remote'
+import type {} from '@clrstn2830h/plugin-paper-trading/remote'
 import { IconReportMoney, IconReportMoneyFilled } from '@tabler/icons-react'
 import { createBoard } from './state.ts'
 import { createViews } from './Views.tsx'
@@ -21,7 +21,7 @@ import zhMeta from '../../locale/zh-CN.json'
 import enMeta from '../../locale/en.json'
 import './style.css'
 
-export const name = 'plugin-paper-trading'
+export const name = '@clrstn2830h/plugin-paper-trading'
 export const inject = ['ftaiFeatures', 'remote']
 
 export function apply(ctx: Context) {

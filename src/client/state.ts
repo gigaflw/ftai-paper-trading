@@ -5,13 +5,13 @@
  * `market/quote`、`order/preview`、`order/place`、`order/cancel`、`review/get`），
  * 只认 Promise 形式的端口，不直接接触 `ctx`。状态属于本次 apply，撤销后旧请求的结果
  * 不再交给界面。
- * @module plugin-paper-trading/client/state
+ * @module @clrstn2830h/plugin-paper-trading/client/state
  */
 
 import type {
   AccountView, AccountsView, Bar, DataSourceView, OrderDraft, OrderView, Period, PreviewView,
   Quote, ReviewView, TabKey,
-} from 'plugin-paper-trading/types'
+} from '@clrstn2830h/plugin-paper-trading/types'
 
 /** remote 调用的结果信封（与 `@ftai/plugin-sdk/remote` 的 `RemoteResult` 同形）。 */
 type Result<T> = { readonly ok: true; readonly value: T } | { readonly ok: false; readonly error: { readonly code: string } }

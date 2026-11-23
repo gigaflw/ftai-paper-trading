@@ -10,7 +10,7 @@
  * - 对界面暴露 dsh 面板同款的 RPC 端点（`rpc(endpoint, payload, account)`），
  *   另保留一组与初版界面兼容的简化方法（board/quote/preview/placeOrder/cancel/review），
  *   界面完全迁到 RPC 端点后即可删除。
- * @module plugin-paper-trading
+ * @module @clrstn2830h/plugin-paper-trading
  */
 
 import type { Context } from 'cordis'
