@@ -179,7 +179,7 @@ export function createBoard() {
 
   /**
    * 连接 FTShare 数据：取一次令牌看通道是否可用。三方插件第一次调用时宿主会弹用户授权，
-   * 所以只在用户点「连接数据」时调用，不在页面打开时自动触发。
+   * 打开面板（bind → autoStart）与用户点「连接数据」都走这里；拒绝只更新数据源徽标。
    */
   async function connectData(): Promise<void> {
     const scope = owner

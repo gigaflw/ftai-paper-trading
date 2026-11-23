@@ -7,9 +7,10 @@
  * sha256；平台外壳（`src/index.ts`、`src/platform/**`、`src/client/**`）不参与同步。
  *
  * 用法：
- *   node scripts/sync-shared.mjs [--tag v0.8.0] [--repo <path>] [--check]
+ *   node scripts/sync-shared.mjs [--tag <tag>] [--repo <path>] [--check]
  *
- * `--check` 只核对当前工作区是否与指定 tag 一致，不改文件，不一致时退出码 1。
+ * 不带 `--tag` 时用 `shared-manifest.json` 记录的 tag（首次同步必须显式指定）。
+ * `--check` 只核对当前工作区是否与该 tag 一致，不改文件，不一致时退出码 1。
  */
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
@@ -36,7 +37,11 @@ if (!existsSync(repo)) {
 }
 
 const manifest = existsSync(manifestPath) ? JSON.parse(readFileSync(manifestPath, 'utf8')) : undefined
-const tag = arg('tag', manifest?.tag ?? 'v0.8.0')
+const tag = arg('tag', manifest?.tag ?? '')
+if (tag === '') {
+  console.error('缺少来源 tag：首次同步请用 --tag 指定 dsh 插件的 tag')
+  process.exit(1)
+}
 const check = process.argv.includes('--check')
 
 /**
@@ -80,7 +85,8 @@ if (check) {
     process.exit(1)
   }
 } else {
-  const commit = execFileSync('git', ['-C', repo, 'rev-parse', tag], { encoding: 'utf8' }).trim()
+  // `rev-parse <tag>` 在 annotated tag 上返回 tag 对象；这里要的是它指向的 commit。
+  const commit = execFileSync('git', ['-C', repo, 'rev-parse', `${tag}^{commit}`], { encoding: 'utf8' }).trim()
   const repoLabel = repo.startsWith(homedir()) ? repo.replace(homedir(), '~') : repo
   writeFileSync(manifestPath, `${JSON.stringify({ repo: repoLabel, tag, commit, paths: SHARED_PATHS, files }, null, 2)}\n`)
   console.log(`已同步 ${listed.length} 个文件（改动 ${changed} 个）；来源 ${repo}@${tag} (${commit.slice(0, 10)})`)

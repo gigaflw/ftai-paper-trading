@@ -4,8 +4,8 @@
   "compilerOptions": {
     "rootDir": "src",
     "outDir": "lib",
-    // 共享层（core/contract/store/service/data/agent）从 dsh 版插件按 v0.8.0 原样同步，
-    // 那边 tsconfig 未开这两项；这里关掉以保持同一份源码能直接编译。
+    // 共享层（core/contract/store/service/data/agent）从 dsh 版插件原样同步（tag 见
+    // shared-manifest.json），那边 tsconfig 未开这两项；这里关掉以保持同一份源码能直接编译。
     "exactOptionalPropertyTypes": false,
     "noUncheckedIndexedAccess": false
   },

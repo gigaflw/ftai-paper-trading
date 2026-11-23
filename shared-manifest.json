@@ -1,7 +1,7 @@
 {
   "repo": "~/workspace/dsh/dsh-fft-paper-trading",
   "tag": "v0.8.0",
-  "commit": "649e9885e37a9abd19a5cdad4b879f2734324d3e",
+  "commit": "41bbc1b12366214fcc9d5df6bc407b3d173d355c",
   "paths": [
     "src/core",
     "src/contract",

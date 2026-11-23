@@ -1,12 +1,12 @@
 /**
  * 模拟盘插件后端（Remote 命名空间 `ftaiPaperTrading`）。
  *
- * 账本、撮合、复盘、股票与期货两套服务都来自 dsh 版插件 v0.8.0 的共享层
+ * 账本、撮合、复盘、股票与期货两套服务都来自 dsh 版插件的共享层
  * （`src/core`、`src/store`、`src/service`、`src/data`、`src/agent`，按原样同步，
- * 位置与命名保持一致）；这里只做平台装配：
+ * 位置与命名保持一致；同步来源 tag 见 `shared-manifest.json`）；这里只做平台装配：
  * - 数据目录用 `ctx.localInstall.dataDir`，账本落在 `<dataDir>/paper-trading/`；
  * - FTShare 取数走 `ctx.ftshare.accessToken()` 的 Bearer 令牌（`platform/ftshare-client`），
- *   用户点「连接数据」后才把数据适配器接上，避免开页就弹授权；
+ *   首次连接（面板打开自动触发，也可手动重试）时把数据适配器接上；令牌取不到只影响行情与预览；
  * - 对界面暴露 dsh 面板同款的 RPC 端点（`rpc(endpoint, payload, account)`），
  *   另保留一组与初版界面兼容的简化方法（board/quote/preview/placeOrder/cancel/review），
  *   界面完全迁到 RPC 端点后即可删除。
