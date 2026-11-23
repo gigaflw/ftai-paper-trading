@@ -15,6 +15,7 @@ FtAi Desktop 的模拟交易插件：宿主一半装配共享业务层并注册 
 | `src/client/` | 界面一半（React）：`Views.tsx`、`state.ts`、i18n、`style.css` |
 | `src/types.ts` | 宿主与界面的边界类型（数据源状态等） |
 | `locale/` | 「功能与插件」页的名称与说明 |
+| `CHANGELOG.md` | 变更记录（发版时写版本段，不随包发布） |
 | `tests/e2e/` | 面板 CDP 走查脚本 |
 | `scripts/sync-shared.mjs` | 共享层同步脚本 |
 | `lib/` | 构建产物（宿主 `index.js`、界面 `client.js`），不进 git |
@@ -99,9 +100,30 @@ node scripts/sync-shared.mjs --check
 
 ## 发布
 
+版本号在 `package.json`，变更记录在 `CHANGELOG.md`（Keep a Changelog，发布日写进版本段，只记用户可感知的改动）。
+`prepack` 会清空 `lib/` 重新构建，所以发布产物一定来自当前源码：
+
 ```bash
-pnpm publish --access public
+# 0) 登录有 @clrstn2830h 发布权限的账号（一次性）
+npm login --registry https://registry.npmjs.org/
+npm whoami --registry https://registry.npmjs.org/
+
+# 1) dry run：先看清要发的产物
+npm publish --dry-run --registry https://registry.npmjs.org/
+
+# 2) 正式发布（开了两步验证会提示一次性密码）
+npm publish --access public --registry https://registry.npmjs.org/
+
+# 3) 核对官方源；本机默认 registry 常是镜像站，查询要显式指定
+npm view @clrstn2830h/plugin-paper-trading@<版本> version dist.tarball \
+  --registry=https://registry.npmjs.org/
 ```
 
-发布前确认包根目录的 `README.md` 已是插件自己的说明（市场详情页取它，不能留模板内容）；新版本发布后
-有冷却期，立即试装时按包名指定版本。`shared-manifest.json` 与同步结果要一起提交。
+- 发版先提交 `release: vX.Y.Z`，只改版本号与 `CHANGELOG.md`；发布成功后再打并推送 annotated tag
+  （`git tag -a vX.Y.Z -m vX.Y.Z`、`git push gitlab vX.Y.Z`）。tag 推送后不移动，npm 同版本不能覆盖，
+  要换产物就升版本重打。
+- 沙箱里 npm 默认缓存不可写时，用 `npm_config_cache=<仓内目录>` 覆盖。
+- 市场：管理端「桌面端插件市场」加版本（要等 npmmirror 同步、哈希一致后才能设为可用），上传图标
+  （PNG/JPEG/WebP，≤256 KiB）后上架；详情页读包里的 `README.md`。
+- 发布后 24 小时内，只写包名可能装到更旧的版本（宿主冷却规则）；立刻试装要写 `包名@版本`。
+- `shared-manifest.json` 与同步结果要跟发版提交一起提交。

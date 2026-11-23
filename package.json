@@ -40,7 +40,8 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json && ftai-plugin-remote && tsc -p tsconfig.client.json && vite build",
-    "test:ui": "node tests/e2e/ui-smoke.mjs"
+    "test:ui": "node tests/e2e/ui-smoke.mjs",
+    "prepack": "rm -rf lib && pnpm run build"
   },
   "devDependencies": {
     "@ftai/plugin-sdk": "^2.5.0",
