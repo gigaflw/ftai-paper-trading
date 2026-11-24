@@ -4,6 +4,11 @@
 [![FtAi Desktop](https://img.shields.io/badge/FtAi%20Desktop-契约%202.5.0%2B-2f6fed)](#兼容与边界)
 [![npm](https://img.shields.io/npm/v/@clrstn2830h/plugin-paper-trading)](https://www.npmjs.com/package/@clrstn2830h/plugin-paper-trading)
 
+> **这是 FtAi Desktop 插件版。** 在 DeepSeek Harness（DSH）里请装
+> [`@dsh-ft/dsh-fft-paper-trading`](https://www.npmjs.com/package/@dsh-ft/dsh-fft-paper-trading)
+> （[GitHub](https://github.com/gigaflw/dsh-fft-paper-trading)）：两版共用同一份账本、撮合与复盘业务层，
+> DSH 版另有期货页面、批量按权重下单与账户对比页。
+
 不开证券账户，也能在 FtAi Desktop 里开一个 A 股模拟盘：行情走 FTShare，账本只存本机；另外带一套商品期货账本，
 只对模型开放工具、没有界面。插件把账本能力注册成 16 个模型工具，会话里可以让模型下单、查持仓、做复盘。
 
