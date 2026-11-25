@@ -12,7 +12,7 @@
 不开证券账户，也能在 FtAi Desktop 里开一个 A 股模拟盘：行情走 FTShare，账本只存本机；另外带一套商品期货账本，
 只对模型开放工具、没有界面。插件把账本能力注册成 16 个模型工具，会话里可以让模型下单、查持仓、做复盘。
 
-![交易页：填代码、方向、数量，预览成本与成交后现金；右栏常驻日 K](https://raw.githubusercontent.com/gigaflw/ftai-paper-trading/main/docs/screenshots/trade.png)
+![交易页：填代码自动取价、自动试算费用与成交后可用；右侧常驻日 K](docs/screenshots/trade.png)
 
 > 股票交易 / 持仓 / 订单 / 复盘
 
@@ -37,6 +37,10 @@
 - **每账户整页笔记**：自由文本、自动保存，存在账本目录旁边，模型没有读写入口。
 - **账本在本机**：`paper-trading/<账户>/events.jsonl` 事件账本，重启自动恢复；重置前自动备份，随时可手动备份、导出 JSONL、从快照恢复。
 - **不用填 API Key**：插件声明 `ftshare.token` 能力，向宿主取**短期令牌**访问 FTShare；插件不保存令牌，也不接触 API Key。
+
+![期货：持仓、保证金占用、风险度与浮动盈亏](docs/screenshots/futures.png)
+
+![对比：各账户净值曲线归一化叠加，按收益率排序并给出最大回撤](docs/screenshots/compare.png)
 
 ## 安装
 
