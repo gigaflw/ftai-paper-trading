@@ -11,8 +11,11 @@ import {
   IconStar, IconStarFilled, IconWallet,
 } from '@tabler/icons-react'
 import type {
-  Bar, CashFlowEntry, CompareRow, DataSourceView, DayReport, FillView, MarketStatus, OrderDraft,
-  OrderView, PositionView, PreviewView, Quote, ReviewView, RoundTrip, TabKey,
+  Bar, CashFlowEntry, CompareRow, DataSourceView, DayReport, FillView, FuturesAccountView,
+  FuturesCashFlowEntry, FuturesContractView, FuturesDraft, FuturesFillView, FuturesMarketStatus,
+  FuturesOrderView, FuturesPositionView, FuturesPreviewView, FuturesQuoteView, FuturesReviewView,
+  FuturesSide, FuturesOffset, FuturesOrderType, FuturesTabKey, MarketStatus, OrderDraft, OrderView,
+  PositionView, PreviewView, Quote, ReviewView, RoundTrip, TabKey,
 } from '@clrstn2830h/plugin-paper-trading/types'
 import { canonicalId, type Board, type BoardSnapshot } from './state.ts'
 
@@ -26,6 +29,10 @@ const BOARDS: readonly { value: string; label: string }[] = [
 const SIDES: readonly ('buy' | 'sell')[] = ['buy', 'sell']
 const TYPES: readonly ('market' | 'limit')[] = ['market', 'limit']
 const PERIODS: readonly ('7d' | '30d' | 'all')[] = ['7d', '30d', 'all']
+const FUTURES_TABS: readonly FuturesTabKey[] = ['trade', 'positions', 'orders', 'review']
+const FUTURES_SIDES: readonly FuturesSide[] = ['long', 'short']
+const FUTURES_OFFSETS: readonly FuturesOffset[] = ['open', 'close']
+const FUTURES_TYPES: readonly FuturesOrderType[] = ['market', 'limit']
 /** 已成交、已撤、已过期等状态不能再撤单。 */
 const CANCELABLE = new Set(['queued', 'pending', 'partially_filled'])
 
@@ -116,6 +123,8 @@ export function createViews(messages: MessageScope, board: Board, prefs?: AppPre
     const [accountsOpen, setAccountsOpen] = useState(false)
     const [cashOpen, setCashOpen] = useState(false)
     const [ledgerOpen, setLedgerOpen] = useState(false)
+    const [futuresCashOpen, setFuturesCashOpen] = useState(false)
+    const [futuresLedgerOpen, setFuturesLedgerOpen] = useState(false)
     const resizeStart = useRef<{ x: number; width: number } | null>(null)
 
     useEffect(() => {
@@ -328,7 +337,13 @@ export function createViews(messages: MessageScope, board: Board, prefs?: AppPre
       <header className="paper-trading-header">
         <div className="paper-trading-header-text">
           <div className="paper-trading-header-meta">
-            {snapshot.accounts !== null && snapshot.accounts.accounts.some(meta => meta.kind === 'stock' && !meta.archived) &&
+            <div className="paper-trading-mode" role="group" aria-label={t('mode.label')}>
+              <Button size="2xs" variant={snapshot.mode === 'stock' ? 'secondary' : 'ghost'}
+                onClick={() => board.setMode('stock')}>{t('mode.stock')}</Button>
+              <Button size="2xs" variant={snapshot.mode === 'futures' ? 'secondary' : 'ghost'}
+                onClick={() => board.setMode('futures')}>{t('mode.futures')}</Button>
+            </div>
+            {snapshot.mode === 'stock' && snapshot.accounts !== null && snapshot.accounts.accounts.some(meta => meta.kind === 'stock' && !meta.archived) &&
               <label className="paper-trading-account-picker">
                 <span className="paper-trading-note">{t('account.picker')}</span>
                 <select className="paper-trading-select" value={snapshot.accountId} disabled={snapshot.busy !== ''}
@@ -340,10 +355,10 @@ export function createViews(messages: MessageScope, board: Board, prefs?: AppPre
             <div className="paper-trading-badge" data-state={snapshot.dataSource?.state ?? 'stub'}>
               {dataSourceLabel(t, snapshot.dataSource)}
             </div>
-            {status !== null && <span className="paper-trading-badge" data-state={status.phase === 'closed' ? 'stub' : 'live'}>
+            {snapshot.mode === 'stock' && status !== null && <span className="paper-trading-badge" data-state={status.phase === 'closed' ? 'stub' : 'live'}>
               {sessionText(t, status)}
             </span>}
-            {status?.calendar?.source === 'fallback' && <span className="paper-trading-note">
+            {snapshot.mode === 'stock' && status?.calendar?.source === 'fallback' && <span className="paper-trading-note">
               {t('session.calendarFallback')}
             </span>}
           </div>
@@ -354,21 +369,38 @@ export function createViews(messages: MessageScope, board: Board, prefs?: AppPre
             disabled={snapshot.busy !== ''} onClick={() => void board.connectData()}>
             {snapshot.dataSource === null ? t('actions.connectData') : t('actions.reconnectData')}
           </Button>}
-          <Button variant="outline" size="sm" disabled={snapshot.busy !== ''}
-            onClick={() => setCashOpen(true)}>
-            <IconWallet className="paper-trading-icon" />{t('actions.cash')}
-          </Button>
-          <Button variant="outline" size="sm" disabled={snapshot.busy !== ''}
-            onClick={() => { setLedgerOpen(true); void board.loadLedger() }}>
-            <IconBook className="paper-trading-icon" />{t('actions.ledger')}
-          </Button>
-          <Button variant="outline" size="sm" disabled={snapshot.busy !== ''}
-            onClick={() => setAccountsOpen(true)}>{t('actions.manageAccounts')}</Button>
-          <Button variant="ghost" size="sm" onClick={() => void board.refresh()} disabled={snapshot.busy !== ''}>
-            <IconRefresh className="paper-trading-icon" />{t('actions.refresh')}
-          </Button>
+          {snapshot.mode === 'stock'
+            ? <>
+              <Button variant="outline" size="sm" disabled={snapshot.busy !== ''}
+                onClick={() => setCashOpen(true)}>
+                <IconWallet className="paper-trading-icon" />{t('actions.cash')}
+              </Button>
+              <Button variant="outline" size="sm" disabled={snapshot.busy !== ''}
+                onClick={() => { setLedgerOpen(true); void board.loadLedger() }}>
+                <IconBook className="paper-trading-icon" />{t('actions.ledger')}
+              </Button>
+              <Button variant="outline" size="sm" disabled={snapshot.busy !== ''}
+                onClick={() => setAccountsOpen(true)}>{t('actions.manageAccounts')}</Button>
+              <Button variant="ghost" size="sm" onClick={() => void board.refresh()} disabled={snapshot.busy !== ''}>
+                <IconRefresh className="paper-trading-icon" />{t('actions.refresh')}
+              </Button>
+            </>
+            : <>
+              <Button variant="outline" size="sm" disabled={snapshot.futures.busy !== ''}
+                onClick={() => setFuturesCashOpen(true)}>
+                <IconWallet className="paper-trading-icon" />{t('actions.cash')}
+              </Button>
+              <Button variant="outline" size="sm" disabled={snapshot.futures.busy !== ''}
+                onClick={() => { setFuturesLedgerOpen(true); void board.loadFuturesLedger() }}>
+                <IconBook className="paper-trading-icon" />{t('actions.ledger')}
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => void board.loadFutures()} disabled={snapshot.futures.busy !== ''}>
+                <IconRefresh className="paper-trading-icon" />{t('actions.refresh')}
+              </Button>
+            </>}
         </div>
       </header>
+      {snapshot.mode === 'stock' ? <>
       <section className="paper-trading-stats">
         <Stat label={t('account.totalAssets')} value={account ? money(account.equity) : '—'} />
         <Stat label={t('account.cash')} value={account ? money(account.cash) : '—'} />
@@ -414,11 +446,16 @@ export function createViews(messages: MessageScope, board: Board, prefs?: AppPre
           </div>}
         </aside>
       </div>
+      </> : <FuturesPanel board={board} snapshot={snapshot} t={t} money={money} n={n} d={d} />}
       <AccountsDialog open={accountsOpen} onClose={() => setAccountsOpen(false)}
         snapshot={snapshot} t={t} board={board} text={code => errorText(t, code)} />
       <CashDialog open={cashOpen} onClose={() => setCashOpen(false)}
         snapshot={snapshot} t={t} money={money} d={d} board={board} text={code => errorText(t, code)} />
       <LedgerDialog open={ledgerOpen} onClose={() => setLedgerOpen(false)}
+        snapshot={snapshot} t={t} money={money} board={board} text={code => errorText(t, code)} />
+      <FuturesCashDialog open={futuresCashOpen} onClose={() => setFuturesCashOpen(false)}
+        snapshot={snapshot} t={t} money={money} d={d} board={board} text={code => errorText(t, code)} />
+      <FuturesLedgerDialog open={futuresLedgerOpen} onClose={() => setFuturesLedgerOpen(false)}
         snapshot={snapshot} t={t} money={money} board={board} text={code => errorText(t, code)} />
     </div>
   }
@@ -1134,6 +1171,616 @@ function MarketTab(props: {
         onClick={() => void board.loadMarket(snapshot.marketBoard, snapshot.marketPage + 1)}>{t('market.next')}</Button>
     </div>
   </div>
+}
+
+
+/** 期货面板：账户统计、四个页签与右侧试算都没有股票那边的 K 线栏。 */
+function FuturesPanel(props: {
+  board: Board
+  snapshot: BoardSnapshot
+  t: MessageScope['t']
+  money: (value: number) => string
+  n: MessageScope['n']
+  d: MessageScope['d']
+}) {
+  const { board, snapshot, t, money, n, d } = props
+  const futures = snapshot.futures
+  const account = futures.account
+  const session = futuresSessionText(t, futures.status)
+  const tabContent = () => {
+    if (account === null) {
+      return futures.errorCode !== ''
+        ? <div className="paper-trading-empty" role="alert">
+          <IconAlertTriangle className="paper-trading-icon" />
+          <span>{futures.errorMessage !== '' ? futures.errorMessage : t('errors.unknown')}</span>
+          <Button variant="outline" size="sm" onClick={() => void board.loadFutures()}>{t('actions.retry')}</Button>
+        </div>
+        : <div className="paper-trading-empty">{t('loading')}</div>
+    }
+    switch (futures.tab) {
+      case 'trade':
+        return <FuturesTradeTab board={board} snapshot={snapshot} t={t} money={money} n={n} d={d} />
+      case 'positions':
+        return <FuturesPositionsTable positions={futures.positions} t={t} money={money} n={n} />
+      case 'orders':
+        return <FuturesOrdersTable orders={futures.orders} t={t} money={money} n={n} d={d}
+          busy={futures.busy !== ''} onCancel={id => void board.cancelFutures(id)} />
+      case 'review': {
+        return <>
+          <div className="paper-trading-tabs" role="group" aria-label={t('review.period')}>
+            {PERIODS.map(period => <Button key={period} size="xs" variant="ghost"
+              onClick={() => void board.loadFuturesReview(period)}>{t(`review.period${period}`)}</Button>)}
+          </div>
+          <FuturesReviewBlock review={futures.review} money={money} t={t} n={n} />
+          <section className="paper-trading-trades">
+            <h4 className="paper-trading-dialog-subtitle">{t('review.cashTitle')}</h4>
+            <FuturesCashFlowTable flow={futures.cashFlow} money={money} t={t} d={d} />
+          </section>
+        </>
+      }
+    }
+  }
+
+  return <div className="paper-trading-futures">
+    <section className="paper-trading-stats">
+      <Stat label={t('futures.account.equity')} value={account === null ? '—' : money(account.equity)} />
+      <Stat label={t('account.cash')} value={account === null ? '—' : money(account.cash)} />
+      <Stat label={t('futures.account.margin')} value={account === null ? '—' : money(account.margin)} />
+      <Stat label={t('account.dayPnl')} value={account === null ? '—' : money(account.todayPnl)} tone={account?.todayPnl} />
+      <Stat label={t('futures.account.risk')} value={account === null ? '—'
+        : n(account.riskRatio, { style: 'percent', minimumFractionDigits: 1, maximumFractionDigits: 1 })} tone={account !== null && account.riskRatio >= 0.8 ? 1 : 0} />
+    </section>
+    <div className="paper-trading-header-meta paper-trading-futures-meta">
+      {futures.status !== null && <span className="paper-trading-badge" data-state={futures.status.canSubmit ? 'live' : 'stub'}>
+        {session}
+      </span>}
+      {futures.status?.calendar?.source === 'fallback' && <span className="paper-trading-note">{t('session.calendarFallback')}</span>}
+      {account !== null && <span className="paper-trading-note">{t('futures.account.tradeDate')} {account.tradeDate}</span>}
+    </div>
+    <div className="paper-trading-main">
+      <div className="paper-trading-tabs" role="tablist" aria-label={t('tabs.label')}>
+        {FUTURES_TABS.map(tab => <Button key={tab} size="xs" variant={futures.tab === tab ? 'secondary' : 'ghost'}
+          role="tab" aria-selected={futures.tab === tab}
+          onClick={() => board.setFuturesTab(tab)}>{t(`futures.tabs.${tab}`)}</Button>)}
+      </div>
+      <div className="paper-trading-content">
+        {futures.errorCode !== '' && account !== null && <div className="paper-trading-error" role="alert">
+          <IconAlertTriangle className="paper-trading-icon" />
+          <span>{futures.errorMessage !== '' ? futures.errorMessage : t('errors.unknown')}</span>
+        </div>}
+        {tabContent()}
+      </div>
+    </div>
+  </div>
+}
+
+/** 期货交易：品种搜索、方向/开平/类型、手数、自动试算、回执与最近成交。 */
+function FuturesTradeTab(props: {
+  board: Board
+  snapshot: BoardSnapshot
+  t: MessageScope['t']
+  money: (value: number) => string
+  n: MessageScope['n']
+  d: MessageScope['d']
+}) {
+  const { board, snapshot, t, money, n, d } = props
+  const futures = snapshot.futures
+  const [symbolInput, setSymbolInput] = useState(futures.symbol)
+  const [side, setSide] = useState<FuturesSide>('long')
+  const [offset, setOffset] = useState<FuturesOffset>('open')
+  const [type, setType] = useState<FuturesOrderType>('market')
+  const [qty, setQty] = useState('1')
+  const [limitPrice, setLimitPrice] = useState('')
+  const [price, setPrice] = useState('')
+  const [note, setNote] = useState('')
+
+  // 合约搜索：输入变化后 300ms 查一次；选中建议后取行情。
+  useEffect(() => {
+    const timer = setTimeout(() => { void board.loadFuturesContracts(symbolInput) }, 300)
+    return () => clearTimeout(timer)
+  }, [symbolInput])
+
+  const draft = (): FuturesDraft => {
+    const qtyNumber = Number(qty)
+    const limitNumber = Number(limitPrice)
+    const priceNumber = Number(price)
+    return {
+      symbol: futures.symbol,
+      side,
+      offset,
+      type,
+      qty: qtyNumber,
+      ...(type === 'limit' ? { limitPrice: limitNumber } : {}),
+      ...(type === 'market' && futures.quote === null && priceNumber > 0 ? { price: priceNumber } : {}),
+      ...(note.trim() === '' ? {} : { note: note.trim() }),
+    }
+  }
+
+  // 自动试算：合约、方向、开平、类型、手数、价格变化后 250ms 重算。
+  useEffect(() => {
+    const qtyNumber = Number(qty)
+    const limitNumber = Number(limitPrice)
+    const priceNumber = Number(price)
+    if (futures.symbol === '' || !Number.isFinite(qtyNumber) || qtyNumber <= 0) return
+    if (type === 'limit' && (!Number.isFinite(limitNumber) || limitNumber <= 0)) return
+    if (type === 'market' && futures.quote === null && (!Number.isFinite(priceNumber) || priceNumber <= 0)) return
+    const timer = setTimeout(() => { void board.loadFuturesPreview(draft()) }, 250)
+    return () => clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [futures.symbol, futures.quote?.last, side, offset, type, qty, limitPrice, price, note])
+
+  const canSubmit = futures.busy !== 'order'
+    && futures.symbol !== ''
+    && Number(qty) > 0
+    && (type === 'limit' ? Number(limitPrice) > 0 : (futures.quote !== null || Number(price) > 0))
+  const preview = futures.preview !== null
+    && futures.preview.symbol === futures.symbol
+    && futures.preview.side === side
+    && futures.preview.offset === offset
+    && futures.preview.type === type
+    && futures.preview.qty === Number(qty)
+    ? futures.preview : null
+  const receipt = futures.lastOrder !== null && futures.lastOrder.symbol === futures.symbol ? futures.lastOrder : null
+
+  return <>
+    <div className="paper-trading-trade">
+      <div className="paper-trading-form-card">
+        <div className="paper-trading-form">
+          <Field label={t('futures.trade.symbol')} htmlFor="futures-symbol" className="paper-trading-span-2">
+            <Input id="futures-symbol" value={symbolInput} placeholder={t('futures.trade.symbolHint')}
+              onChange={event => setSymbolInput(event.target.value.toUpperCase())}
+              onKeyDown={event => { if (event.key === 'Enter') void board.loadFuturesQuote(symbolInput) }} />
+          </Field>
+          {futures.contracts.length > 0 && <div className="paper-trading-hits paper-trading-span-2">
+            {futures.contracts.slice(0, 8).map(contract => <button key={contract.symbol} type="button"
+              className="paper-trading-hit"
+              onClick={() => { setSymbolInput(contract.symbol); void board.loadFuturesQuote(contract.symbol) }}>
+              <span className="paper-trading-mono">{contract.symbol}</span>{contract.name}
+              <span className="paper-trading-note">{contract.exchange}</span>
+            </button>)}
+          </div>}
+          <Field label={t('futures.trade.side')}>
+            <Segmented ariaLabel={t('futures.trade.side')} value={side}
+              options={FUTURES_SIDES.map(value => ({ value, label: t(`futures.side.${value}`) }))} onChange={setSide} />
+          </Field>
+          <Field label={t('futures.trade.offset')}>
+            <Segmented ariaLabel={t('futures.trade.offset')} value={offset}
+              options={FUTURES_OFFSETS.map(value => ({ value, label: t(`futures.offset.${value}`) }))} onChange={setOffset} />
+          </Field>
+          <Field label={t('futures.trade.type')}>
+            <Segmented ariaLabel={t('futures.trade.type')} value={type}
+              options={FUTURES_TYPES.map(value => ({ value, label: t(`orderType.${value}`) }))} onChange={setType} />
+          </Field>
+          <Field label={t('futures.trade.qty')} htmlFor="futures-qty">
+            <Input id="futures-qty" value={qty} inputMode="numeric" onChange={event => setQty(event.target.value)} />
+          </Field>
+          <Field label={t('futures.trade.limitPrice')} htmlFor="futures-limit">
+            <Input id="futures-limit" inputMode="decimal" value={type === 'limit' ? limitPrice : ''}
+              disabled={type !== 'limit'} {...(type === 'limit' ? {} : { placeholder: t('futures.trade.marketHint') })}
+              onChange={event => setLimitPrice(event.target.value)} />
+          </Field>
+          {type === 'market' && futures.quote === null && (
+            <Field label={t('futures.trade.referencePrice')} htmlFor="futures-price" className="paper-trading-span-2">
+              <Input id="futures-price" inputMode="decimal" value={price}
+                placeholder={t('futures.trade.referenceHint')}
+                onChange={event => setPrice(event.target.value)} />
+            </Field>
+          )}
+          <Field label={t('trade.note')} htmlFor="futures-note" className="paper-trading-span-2">
+            <Input id="futures-note" value={note} maxLength={120} placeholder={t('trade.noteHint')}
+              onChange={event => setNote(event.target.value)} />
+          </Field>
+          <div className="paper-trading-actions paper-trading-span-2">
+            <span className="paper-trading-note">{t('futures.trade.autoHint')}</span>
+            <Button size="sm" disabled={!canSubmit}
+              onClick={() => void board.submitFutures(draft())}>{t('trade.submit')}</Button>
+          </div>
+        </div>
+      </div>
+      <div className="paper-trading-trade-side">
+        <FuturesQuoteBlock quote={futures.quote} t={t} money={money} />
+        <FuturesPreviewBlock preview={preview} busy={futures.previewBusy} t={t} money={money} n={n} />
+        {receipt !== null && <FuturesReceipt order={receipt} t={t} money={money} n={n} d={d} />}
+        <FuturesTradesTable trades={futures.trades.slice(0, 5)} t={t} money={money} n={n} d={d} />
+      </div>
+    </div>
+    <FuturesOrdersTable orders={futures.orders.slice(0, 5)} t={t} money={money} n={n} d={d}
+      busy={futures.busy !== ''} onCancel={id => void board.cancelFutures(id)} />
+  </>
+}
+
+function futuresSessionText(t: MessageScope['t'], status: FuturesMarketStatus | null): string {
+  if (status === null) return ''
+  switch (status.phase) {
+    case 'pre_open': return t('session.preOpen')
+    case 'trading': return t('futures.session.trading')
+    case 'lunch': return t('session.lunch')
+    case 'closed': return t('session.closed')
+    default: return ''
+  }
+}
+
+function FuturesQuoteBlock(props: { quote: FuturesQuoteView | null; t: MessageScope['t']; money: (value: number) => string }) {
+  if (props.quote === null) return <div className="paper-trading-empty">{props.t('futures.trade.symbolHint')}</div>
+  const quote = props.quote
+  const base = quote.preSettlement ?? quote.last
+  const change = base > 0 ? ((quote.last - base) / base) * 100 : 0
+  return <section className="paper-trading-quote">
+    <div className="paper-trading-quote-head">
+      {quote.name !== undefined && <strong>{quote.name}</strong>}
+      <span className="paper-trading-mono">{quote.symbol}</span>
+      {quote.marketTs !== undefined && <span className="paper-trading-note">{quote.marketTs.replace('T', ' ').slice(0, 16)}</span>}
+    </div>
+    <div className="paper-trading-quote-body">
+      <span className={change >= 0 ? 'is-up' : 'is-down'}>{props.money(quote.last)}</span>
+      <span className={change >= 0 ? 'is-up' : 'is-down'}>{props.t('futures.quote.change', { change: change.toFixed(2) })}</span>
+      {quote.preSettlement !== undefined && <span className="paper-trading-note">{props.t('futures.quote.preSettlement', { price: props.money(quote.preSettlement) })}</span>}
+      {quote.openInterest !== undefined && <span className="paper-trading-note">{props.t('futures.quote.openInterest', { value: String(quote.openInterest) })}</span>}
+    </div>
+  </section>
+}
+
+function FuturesPreviewBlock(props: {
+  preview: FuturesPreviewView | null
+  busy: boolean
+  t: MessageScope['t']
+  money: (value: number) => string
+  n: MessageScope['n']
+}) {
+  if (props.preview === null) {
+    return props.busy ? <div className="paper-trading-empty">{props.t('preview.loading')}</div> : null
+  }
+  const preview = props.preview
+  return <section className="paper-trading-preview">
+    <div><span>{props.t('preview.price')}</span><strong className="paper-trading-mono">{props.money(preview.price)}</strong></div>
+    <div><span>{props.t('futures.preview.amount')}</span><span className="paper-trading-mono">{props.money(preview.amountCents / 100)}</span></div>
+    <div><span>{props.t('futures.preview.margin')}</span><strong className="paper-trading-mono">{props.money(preview.marginCents / 100)}</strong></div>
+    <div><span>{props.t('futures.preview.fees')}</span><span className="paper-trading-mono">{props.money(preview.feesCents / 100)}</span></div>
+    <div><span>{props.t('preview.cashAfter')}</span><span className="paper-trading-mono">{props.money(preview.cashAfterCents / 100)}</span></div>
+    <div><span>{props.t('futures.preview.equityAfter')}</span><span className="paper-trading-mono">{props.money(preview.equityAfter)}</span></div>
+    <div><span>{props.t('futures.preview.riskAfter')}</span><span className="paper-trading-mono">
+      {props.n(preview.riskRatioAfter, { style: 'percent', minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+    </span></div>
+    <div><span>{props.t('futures.preview.maxOpen')}</span><span className="paper-trading-mono">{props.n(preview.maxOpenQty)}</span></div>
+    <div><span>{props.t('futures.preview.availableClose')}</span><span className="paper-trading-mono">{props.n(preview.availableCloseQty)}</span></div>
+    {preview.limit !== undefined && <div>
+      <span>{props.t('preview.priceLimit')}</span>
+      <span className="paper-trading-mono">{props.money(preview.limit.lower)} – {props.money(preview.limit.upper)}</span>
+    </div>}
+    {preview.warnings.length === 0
+      ? <p className="paper-trading-note">{props.t('preview.valid')}</p>
+      : <p className="paper-trading-error-text" role="alert">{preview.warnings.join('；')}</p>}
+  </section>
+}
+
+function FuturesReceipt(props: {
+  order: FuturesOrderView
+  t: MessageScope['t']
+  money: (value: number) => string
+  n: MessageScope['n']
+  d: MessageScope['d']
+}) {
+  const order = props.order
+  const state = order.status === 'rejected' ? 'rejected' : order.status === 'filled' ? 'filled' : 'pending'
+  return <section className="paper-trading-receipt" data-state={state} aria-label={props.t('receipt.title')}>
+    <div className="paper-trading-receipt-head">
+      <strong>{props.t('receipt.title')}</strong>
+      <span>{props.t(`orderStatus.${order.status}`)}</span>
+    </div>
+    <div className="paper-trading-receipt-body">
+      <span className="paper-trading-mono">{order.symbol}</span>
+      <span>{props.t(`futures.direction.${order.side}.${order.offset}`)} {props.n(order.qty)}</span>
+      {order.fillPrice !== undefined && <span className="paper-trading-mono">{props.money(order.fillPrice)}</span>}
+      <span className="paper-trading-note">{props.d(new Date(order.updatedAt), { hour: '2-digit', minute: '2-digit' })}</span>
+    </div>
+    {order.reason !== undefined && order.reason !== '' && <p className="paper-trading-error-text">{order.reason}</p>}
+    {order.note !== undefined && order.note !== '' && <p className="paper-trading-note">{order.note}</p>}
+  </section>
+}
+
+function FuturesTradesTable(props: {
+  trades: readonly FuturesFillView[]
+  t: MessageScope['t']
+  money: (value: number) => string
+  n: MessageScope['n']
+  d: MessageScope['d']
+}) {
+  return <section className="paper-trading-trades">
+    <h4 className="paper-trading-dialog-subtitle">{props.t('trades.title')}</h4>
+    {props.trades.length === 0
+      ? <div className="paper-trading-empty">{props.t('trades.empty')}</div>
+      : <div className="paper-trading-table-wrap">
+        <table className="paper-trading-table">
+          <thead><tr>
+            <th>{props.t('trades.time')}</th><th>{props.t('trades.symbol')}</th>
+            <th>{props.t('orders.side')}</th><th className="is-num">{props.t('trades.price')}</th>
+            <th className="is-num">{props.t('trades.qty')}</th>
+          </tr></thead>
+          <tbody>{props.trades.map(trade => <tr key={trade.id}>
+            <td className="is-num">{props.d(new Date(trade.ts), { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</td>
+            <td><span className="paper-trading-mono">{trade.symbol}</span> {trade.name}</td>
+            <td>{props.t(`futures.direction.${trade.side}.${trade.offset}`)}</td>
+            <td className="is-num paper-trading-mono">{props.money(trade.price)}</td>
+            <td className="is-num">{props.n(trade.qty)}</td>
+          </tr>)}</tbody>
+        </table>
+      </div>}
+  </section>
+}
+
+function FuturesPositionsTable(props: {
+  positions: readonly FuturesPositionView[]
+  t: MessageScope['t']
+  money: (value: number) => string
+  n: MessageScope['n']
+}) {
+  if (props.positions.length === 0) return <div className="paper-trading-empty">{props.t('futures.positions.empty')}</div>
+  return <div className="paper-trading-table-wrap">
+    <table className="paper-trading-table">
+      <thead><tr>
+        <th>{props.t('positions.symbol')}</th><th>{props.t('futures.positions.side')}</th>
+        <th className="is-num">{props.t('futures.positions.qty')}</th>
+        <th className="is-num">{props.t('futures.positions.today')}</th>
+        <th className="is-num">{props.t('positions.avgCost')}</th>
+        <th className="is-num">{props.t('positions.lastPrice')}</th>
+        <th className="is-num">{props.t('futures.positions.margin')}</th>
+        <th className="is-num">{props.t('positions.pnl')}</th>
+      </tr></thead>
+      <tbody>{props.positions.map(position => <tr key={`${position.symbol}-${position.side}`}>
+        <td><span className="paper-trading-mono">{position.symbol}</span> {position.name}</td>
+        <td className={position.side === 'long' ? 'is-up' : 'is-down'}>{props.t(`futures.side.${position.side}`)}</td>
+        <td className="is-num">{props.n(position.qty)}</td>
+        <td className="is-num">{props.n(position.todayQty)}</td>
+        <td className="is-num paper-trading-mono">{props.money(position.avgPrice)}</td>
+        <td className="is-num paper-trading-mono">{position.lastPrice === undefined ? '—' : props.money(position.lastPrice)}</td>
+        <td className="is-num paper-trading-mono">{props.money(position.marginCents / 100)}</td>
+        <td className={`is-num paper-trading-mono ${(position.unrealizedPnlCents ?? 0) >= 0 ? 'is-up' : 'is-down'}`}>
+          {props.money((position.unrealizedPnlCents ?? 0) / 100)}
+        </td>
+      </tr>)}</tbody>
+    </table>
+  </div>
+}
+
+function FuturesOrdersTable(props: {
+  orders: readonly FuturesOrderView[]
+  t: MessageScope['t']
+  money: (value: number) => string
+  n: MessageScope['n']
+  d: MessageScope['d']
+  busy: boolean
+  onCancel: (orderId: string) => void
+}) {
+  if (props.orders.length === 0) return <div className="paper-trading-empty">{props.t('orders.empty')}</div>
+  return <div className="paper-trading-table-wrap">
+    <table className="paper-trading-table">
+      <thead><tr>
+        <th>{props.t('orders.time')}</th><th>{props.t('orders.symbol')}</th>
+        <th>{props.t('orders.side')}</th><th>{props.t('orders.type')}</th>
+        <th className="is-num">{props.t('orders.price')}</th><th className="is-num">{props.t('orders.qty')}</th>
+        <th>{props.t('orders.status')}</th><th />
+      </tr></thead>
+      <tbody>{props.orders.map(order => <tr key={order.id}>
+        <td className="is-num">{props.d(new Date(order.createdAt), { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</td>
+        <td><span className="paper-trading-mono">{order.symbol}</span> {order.name}</td>
+        <td>{props.t(`futures.direction.${order.side}.${order.offset}`)}</td>
+        <td>{props.t(`orderType.${order.type}`)}</td>
+        <td className="is-num paper-trading-mono">{order.limitPrice === undefined ? '—' : props.money(order.limitPrice)}</td>
+        <td className="is-num">{props.n(order.qty)}</td>
+        <td>{props.t(`orderStatus.${order.status}`)}</td>
+        <td>{CANCELABLE.has(order.status) && <Button variant="ghost" size="2xs" disabled={props.busy}
+          onClick={() => props.onCancel(order.id)}>{props.t('orders.cancel')}</Button>}</td>
+      </tr>)}</tbody>
+    </table>
+  </div>
+}
+
+function FuturesReviewBlock(props: {
+  review: FuturesReviewView | null
+  money: (value: number) => string
+  t: MessageScope['t']
+  n: MessageScope['n']
+}) {
+  if (props.review === null) return <div className="paper-trading-empty">{props.t('review.empty')}</div>
+  const review = props.review
+  const points = review.equityCurve
+  const values = points.map(point => point.equity)
+  const min = values.length === 0 ? 0 : Math.min(...values)
+  const max = values.length === 0 ? 1 : Math.max(...values)
+  const span = Math.max(1, max - min)
+  const polyline = points.map((point, index) => {
+    const x = points.length <= 1 ? 0 : (index / (points.length - 1)) * 600
+    const y = 150 - ((point.equity - min) / span) * 140
+    return `${x.toFixed(1)},${y.toFixed(1)}`
+  }).join(' ')
+  return <>
+    <section className="paper-trading-stats">
+      <Stat label={props.t('review.trades')} value={props.n(review.tradeCount)} />
+      <Stat label={props.t('review.realizedPnl')} value={props.money(review.realizedPnl)} tone={review.realizedPnl} />
+      <Stat label={props.t('review.maxDrawdown')} value={props.n(review.maxDrawdownPct / 100, { style: 'percent', minimumFractionDigits: 2, maximumFractionDigits: 2 })} />
+      <Stat label={props.t('review.fees')} value={props.money(review.totalFees)} />
+      <Stat label={props.t('futures.review.winLoss')} value={`${props.n(review.winCount)} / ${props.n(review.lossCount)}`} />
+    </section>
+    <section className="paper-trading-chart" aria-label={props.t('review.equity')}>
+      <div className="paper-trading-chart-scale"><span>{props.money(max)}</span><span>{props.money(min)}</span></div>
+      <svg viewBox="0 0 600 160" preserveAspectRatio="none" role="img" aria-label={props.t('review.equity')}>
+        <polyline points={polyline} fill="none" stroke="currentColor" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
+      </svg>
+      <div className="paper-trading-chart-scale paper-trading-chart-scale-x">
+        <span>{points[0]?.date ?? ''}</span><span>{points[points.length - 1]?.date ?? ''}</span>
+      </div>
+      <p className="paper-trading-note">{props.t('review.equityHint')}</p>
+    </section>
+    <section className="paper-trading-review-section">
+      <h4 className="paper-trading-dialog-subtitle">{props.t('futures.review.byProduct')}</h4>
+      {review.byProduct.length === 0
+        ? <div className="paper-trading-empty">{props.t('review.empty')}</div>
+        : <div className="paper-trading-table-wrap">
+          <table className="paper-trading-table">
+            <thead><tr>
+              <th>{props.t('futures.review.product')}</th>
+              <th className="is-num">{props.t('review.trades')}</th>
+              <th className="is-num">{props.t('review.realizedPnl')}</th>
+            </tr></thead>
+            <tbody>{review.byProduct.map(row => <tr key={row.product}>
+              <td>{row.product}</td>
+              <td className="is-num">{props.n(row.tradeCount)}</td>
+              <td className={`is-num paper-trading-mono ${row.realizedPnl >= 0 ? 'is-up' : 'is-down'}`}>{props.money(row.realizedPnl)}</td>
+            </tr>)}</tbody>
+          </table>
+        </div>}
+    </section>
+  </>
+}
+
+function FuturesCashFlowTable(props: {
+  flow: readonly FuturesCashFlowEntry[]
+  money: (value: number) => string
+  t: MessageScope['t']
+  d: MessageScope['d']
+}) {
+  if (props.flow.length === 0) return <div className="paper-trading-empty">{props.t('cash.empty')}</div>
+  return <div className="paper-trading-table-wrap paper-trading-dialog-table">
+    <table className="paper-trading-table">
+      <thead><tr>
+        <th>{props.t('cash.time')}</th><th>{props.t('cash.type')}</th>
+        <th className="is-num">{props.t('cash.amount')}</th><th className="is-num">{props.t('cash.balance')}</th>
+      </tr></thead>
+      <tbody>{props.flow.slice(-30).reverse().map((entry, index) => <tr key={`${entry.ts}-${index}`}>
+        <td className="is-num">{props.d(new Date(entry.ts), { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</td>
+        <td>{props.t(`cash.futuresKind.${entry.type}`)}</td>
+        <td className={`is-num paper-trading-mono ${entry.amount < 0 ? 'is-down' : 'is-up'}`}>{props.money(entry.amount)}</td>
+        <td className="is-num paper-trading-mono">{props.money(entry.balance)}</td>
+      </tr>)}</tbody>
+    </table>
+  </div>
+}
+
+/** 期货资金：注资、提款与期货资金流水。 */
+function FuturesCashDialog(props: {
+  open: boolean
+  onClose: () => void
+  snapshot: BoardSnapshot
+  t: MessageScope['t']
+  money: (value: number) => string
+  d: MessageScope['d']
+  board: Board
+  text: (code: string) => string
+}) {
+  const { t, snapshot, board, money, d } = props
+  const [amount, setAmount] = useState('')
+  const [error, setError] = useState('')
+  const busy = snapshot.futures.busy === 'cash'
+  const move = async (kind: 'deposit' | 'withdraw') => {
+    const value = Number(amount)
+    if (!Number.isFinite(value) || value <= 0) {
+      setError('INVALID_ARGUMENT')
+      return
+    }
+    setError(await (kind === 'deposit' ? board.depositFutures(value) : board.withdrawFutures(value)))
+    setAmount('')
+  }
+  return <Dialog open={props.open} onOpenChange={open => { if (!open) props.onClose() }}>
+    <DialogContent className="paper-trading-dialog">
+      <DialogHeader><DialogTitle>{t('futures.cash.title')}</DialogTitle></DialogHeader>
+      <div className="paper-trading-dialog-section">
+        <div className="paper-trading-inline-form">
+          <Input value={amount} inputMode="decimal" placeholder={t('cash.amount')} aria-label={t('cash.amount')}
+            onChange={event => setAmount(event.target.value)} />
+          <Button size="sm" disabled={busy} onClick={() => void move('deposit')}>{t('cash.deposit')}</Button>
+          <Button size="sm" variant="outline" disabled={busy} onClick={() => void move('withdraw')}>{t('cash.withdraw')}</Button>
+        </div>
+        {error !== '' && <p className="paper-trading-error-text" role="alert">{props.text(error)}</p>}
+        <h4 className="paper-trading-dialog-subtitle">{t('cash.flowTitle')}</h4>
+        <FuturesCashFlowTable flow={snapshot.futures.cashFlow} money={money} t={t} d={d} />
+      </div>
+      <DialogFooter><Button variant="ghost" size="sm" onClick={props.onClose}>{t('actions.close')}</Button></DialogFooter>
+    </DialogContent>
+  </Dialog>
+}
+
+/** 期货账本：备份、导出、从快照恢复与重置。 */
+function FuturesLedgerDialog(props: {
+  open: boolean
+  onClose: () => void
+  snapshot: BoardSnapshot
+  t: MessageScope['t']
+  money: (value: number) => string
+  board: Board
+  text: (code: string) => string
+}) {
+  const { t, snapshot, board, money } = props
+  const [error, setError] = useState('')
+  const [confirmName, setConfirmName] = useState('')
+  const [confirmReset, setConfirmReset] = useState(false)
+  const futures = snapshot.futures
+  const ledger = futures.ledger
+  const busy = futures.busy === 'ledger'
+  const exported = futures.ledgerExport
+  const run = async (pending: Promise<string>) => setError(await pending)
+  const download = () => {
+    if (exported?.content === undefined) return
+    const blob = new Blob([exported.content], { type: 'application/x-ndjson' })
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = 'futures-events.jsonl'
+    anchor.click()
+    URL.revokeObjectURL(url)
+  }
+  return <Dialog open={props.open} onOpenChange={open => { if (!open) props.onClose() }}>
+    <DialogContent className="paper-trading-dialog">
+      <DialogHeader><DialogTitle>{t('futures.ledger.title')}</DialogTitle></DialogHeader>
+      <div className="paper-trading-dialog-section">
+        <p className="paper-trading-note paper-trading-break">
+          {ledger?.path ?? futures.account?.ledgerPath ?? '—'}
+        </p>
+        <div className="paper-trading-inline-form">
+          <Button size="sm" variant="outline" disabled={busy}
+            onClick={() => void run(board.backupFuturesLedger())}>{t('ledger.backup')}</Button>
+          <Button size="sm" variant="outline" disabled={busy}
+            onClick={() => void run(board.exportFuturesLedger())}>{t('ledger.export')}</Button>
+          {exported?.content !== undefined && <Button size="sm" variant="ghost" onClick={download}>{t('ledger.download')}</Button>}
+        </div>
+        {error !== '' && <p className="paper-trading-error-text" role="alert">{props.text(error)}</p>}
+        <h4 className="paper-trading-dialog-subtitle">{t('ledger.snapshots')}</h4>
+        {ledger === null || ledger.snapshots.length === 0
+          ? <div className="paper-trading-empty">{t('ledger.empty')}</div>
+          : <div className="paper-trading-table-wrap paper-trading-dialog-table">
+            <table className="paper-trading-table">
+              <thead><tr>
+                <th>{t('ledger.snapshot')}</th><th className="is-num">{t('ledger.cash')}</th>
+                <th className="is-num">{t('ledger.tradeDate')}</th><th>{t('ledger.state')}</th><th />
+              </tr></thead>
+              <tbody>{ledger.snapshots.map(view => <tr key={view.name}>
+                <td className="paper-trading-mono">{view.name}</td>
+                <td className="is-num paper-trading-mono">{money(view.cash)}</td>
+                <td className="is-num">{view.tradeDate}</td>
+                <td>{view.valid ? t('ledger.valid') : t('ledger.invalid')}</td>
+                <td>{view.valid && (confirmName === view.name
+                  ? <Button size="2xs" variant="destructive" disabled={busy}
+                    onClick={() => void run(board.restoreFuturesLedger(view.name)).then(() => setConfirmName(''))}>
+                    {t('ledger.restoreConfirm')}
+                  </Button>
+                  : <Button size="2xs" variant="ghost" disabled={busy || ledger.blocked}
+                    onClick={() => setConfirmName(view.name)}>{t('ledger.restore')}</Button>)}</td>
+              </tr>)}</tbody>
+            </table>
+          </div>}
+        <h4 className="paper-trading-dialog-subtitle">{t('ledger.resetTitle')}</h4>
+        <p className="paper-trading-note">{t('futures.ledger.resetHint')}</p>
+        <div className="paper-trading-inline-form">
+          <Button size="sm" variant={confirmReset ? 'destructive' : 'outline'} disabled={busy}
+            onClick={async () => {
+              if (!confirmReset) { setConfirmReset(true); return }
+              await run(board.resetFuturesAccount())
+              setConfirmReset(false)
+            }}>{confirmReset ? t('ledger.resetConfirm') : t('ledger.reset')}</Button>
+        </div>
+      </div>
+      <DialogFooter><Button variant="ghost" size="sm" onClick={props.onClose}>{t('actions.close')}</Button></DialogFooter>
+    </DialogContent>
+  </Dialog>
 }
 
 function OrdersTable(props: {

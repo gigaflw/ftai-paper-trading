@@ -5,6 +5,7 @@ export default {
   loading: '正在读取账本…',
   tabs: { label: '视图', trade: '交易', positions: '持仓', orders: '订单', review: '复盘', compare: '对比', market: '行情' },
   board: { all: '全部', main: '主板', star: '科创板', chiNext: '创业板', bjse: '北交所', xshg: '沪市', xshe: '深市' },
+  mode: { label: '账户类型', stock: '股票', futures: '期货' },
   account: {
     picker: '账户', totalAssets: '总资产', cash: '可用现金', marketValue: '持仓市值',
     dayPnl: '今日盈亏', totalPnl: '累计盈亏',
@@ -63,6 +64,10 @@ export default {
     flowTitle: '资金流水', empty: '暂无资金流水', time: '时间', type: '类型', balance: '余额',
     invalidAmount: '请输入大于 0 的金额',
     kind: { open: '开户', reset: '重置', buy: '买入', sell: '卖出', deposit: '注资', withdraw: '提款' },
+    futuresKind: {
+      open: '开户', deposit: '注资', withdraw: '提款',
+      open_position: '开仓占用', close_position: '平仓释放',
+    },
   },
   ledger: {
     title: '账本', blocked: '账本已锁定', backup: '立即备份', export: '导出账本',
@@ -108,6 +113,33 @@ export default {
     empty: '没有行情；连接 FTShare 数据后重试', symbol: '标的', last: '现价',
     change: '涨跌幅', prevClose: '昨收', favorite: '备选', unfavorite: '移出备选',
     prev: '上一页', next: '下一页', page: '第 {page} 页',
+  },
+  futures: {
+    tabs: { trade: '交易', positions: '持仓', orders: '订单', review: '复盘' },
+    account: { equity: '总资产', margin: '保证金占用', risk: '风险度', tradeDate: '交易日' },
+    session: { trading: '交易中' },
+    trade: {
+      symbol: '合约', symbolHint: '输入品种或代码搜索，如 rb 或 RB2611',
+      side: '方向', offset: '开平', type: '类型', qty: '手数', limitPrice: '限价',
+      marketHint: '市价按现价成交', referencePrice: '参考价',
+      referenceHint: '没有行情时手填参考价，按市价单提交',
+      autoHint: '保证金、费用与风险度随输入自动重算',
+    },
+    side: { long: '多', short: '空' },
+    offset: { open: '开仓', close: '平仓' },
+    direction: {
+      long: { open: '开多', close: '平多' },
+      short: { open: '开空', close: '平空' },
+    },
+    quote: { change: '涨跌 {change}%', preSettlement: '昨结 {price}', openInterest: '持仓 {value}' },
+    preview: {
+      amount: '合约价值', margin: '保证金', fees: '手续费', equityAfter: '结算后权益',
+      riskAfter: '成交后风险度', maxOpen: '最多可开', availableClose: '可平手数',
+    },
+    positions: { empty: '暂无持仓', side: '方向', qty: '手数', today: '今仓', margin: '保证金' },
+    review: { winLoss: '盈 / 亏', byProduct: '分品种统计', product: '品种' },
+    cash: { title: '期货资金' },
+    ledger: { title: '期货账本', resetHint: '重置前自动备份；合约与参数沿用共享层默认设置。' },
   },
   rail: {
     label: 'K 线', placeholder: '查询行情后显示日 K', hint: '日 K 来自 FTShare，最多 240 根',

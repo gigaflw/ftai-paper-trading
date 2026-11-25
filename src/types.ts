@@ -15,11 +15,19 @@ export type {
   Side, SymbolHit,
 } from './contract.ts'
 
+export type {
+  FuturesAccountView, FuturesCashFlowEntry, FuturesContractView, FuturesContractsResult, FuturesDraft,
+  FuturesFillView, FuturesLedgerExport, FuturesMarketStatus, FuturesOrderView, FuturesPositionView,
+  FuturesPreviewView, FuturesQuoteView, FuturesReviewView, FuturesSide, FuturesOffset, FuturesOrderType,
+} from './futures-contract.ts'
+
 /** 复盘区间：与共享层 `Period` 同义。 */
 export type { Period as ReviewPeriod } from './contract.ts'
 
 /** 页面标签。 */
 export type TabKey = 'trade' | 'positions' | 'orders' | 'review' | 'compare' | 'market'
+/** 期货页标签。 */
+export type FuturesTabKey = 'trade' | 'positions' | 'orders' | 'review'
 
 /** 平台自己的数据源状态：`live` 已拿到 FTShare 令牌；`stub` 还没连接。 */
 export interface DataSourceView {

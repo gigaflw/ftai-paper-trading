@@ -217,6 +217,23 @@ const steps = [
     },
   },
   {
+    name: '期货面板',
+    async run() {
+      await page.getByRole('button', { name: '期货', exact: true }).click()
+      await page.locator('.paper-trading-futures').waitFor({ state: 'visible' })
+      const cards = page.locator('.paper-trading-futures .paper-trading-stat')
+      assert(await cards.count() === 5, `期货统计卡应有 5 张，实际 ${await cards.count()}`)
+      const tabs = await page.getByRole('tab').allInnerTexts()
+      for (const expected of ['交易', '持仓', '订单', '复盘']) {
+        assert(tabs.some(text => text.trim() === expected), `期货标签缺少「${expected}」：${tabs.join('/')}`)
+      }
+      assert(await page.locator('#futures-symbol').count() === 1, '期货交易页缺少合约输入')
+      await shot(page, outDir, '11-futures')
+      await page.getByRole('button', { name: '股票', exact: true }).click()
+      await page.locator('.paper-trading-body').waitFor({ state: 'visible' })
+    },
+  },
+  {
     name: 'K 线栏拖动与折叠',
     async run() {
       // 先往右拖到最窄，再往左拖宽：不依赖上次运行留下的宽度与窗口大小。

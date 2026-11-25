@@ -5,6 +5,7 @@ export default {
   loading: 'Loading ledger…',
   tabs: { label: 'Views', trade: 'Trade', positions: 'Positions', orders: 'Orders', review: 'Review', compare: 'Compare', market: 'Market' },
   board: { all: 'All', main: 'Main board', star: 'STAR', chiNext: 'ChiNext', bjse: 'BSE', xshg: 'Shanghai', xshe: 'Shenzhen' },
+  mode: { label: 'Account type', stock: 'Stocks', futures: 'Futures' },
   account: {
     picker: 'Account', totalAssets: 'Total assets', cash: 'Available cash', marketValue: 'Market value',
     dayPnl: "Today's P&L", totalPnl: 'Total P&L',
@@ -63,6 +64,10 @@ export default {
     flowTitle: 'Cash flow', empty: 'No cash flow yet', time: 'Time', type: 'Type', balance: 'Balance',
     invalidAmount: 'Enter an amount greater than 0',
     kind: { open: 'Opened', reset: 'Reset', buy: 'Buy', sell: 'Sell', deposit: 'Deposit', withdraw: 'Withdraw' },
+    futuresKind: {
+      open: 'Opened', deposit: 'Deposit', withdraw: 'Withdraw',
+      open_position: 'Margin held', close_position: 'Margin released',
+    },
   },
   ledger: {
     title: 'Ledger', blocked: 'Ledger is locked', backup: 'Back up now', export: 'Export ledger',
@@ -108,6 +113,33 @@ export default {
     empty: 'No quotes; connect FTShare data and retry', symbol: 'Symbol', last: 'Last',
     change: 'Change', prevClose: 'Prev close', favorite: 'Watchlist', unfavorite: 'Remove from watchlist',
     prev: 'Previous', next: 'Next', page: 'Page {page}',
+  },
+  futures: {
+    tabs: { trade: 'Trade', positions: 'Positions', orders: 'Orders', review: 'Review' },
+    account: { equity: 'Equity', margin: 'Margin', risk: 'Risk ratio', tradeDate: 'Trade date' },
+    session: { trading: 'Trading' },
+    trade: {
+      symbol: 'Contract', symbolHint: 'Search by product or code, e.g. rb or RB2611',
+      side: 'Side', offset: 'Offset', type: 'Type', qty: 'Lots', limitPrice: 'Limit price',
+      marketHint: 'Market orders fill at the current price', referencePrice: 'Reference price',
+      referenceHint: 'No quote available — enter a reference price and submit at market',
+      autoHint: 'Margin, fees and risk ratio update as you type',
+    },
+    side: { long: 'Long', short: 'Short' },
+    offset: { open: 'Open', close: 'Close' },
+    direction: {
+      long: { open: 'Open long', close: 'Close long' },
+      short: { open: 'Open short', close: 'Close short' },
+    },
+    quote: { change: 'Change {change}%', preSettlement: 'Prev settle {price}', openInterest: 'OI {value}' },
+    preview: {
+      amount: 'Notional', margin: 'Margin', fees: 'Fees', equityAfter: 'Equity after',
+      riskAfter: 'Risk after', maxOpen: 'Max open', availableClose: 'Closable lots',
+    },
+    positions: { empty: 'No positions', side: 'Side', qty: 'Lots', today: 'Today', margin: 'Margin' },
+    review: { winLoss: 'Wins / losses', byProduct: 'By product', product: 'Product' },
+    cash: { title: 'Futures cash' },
+    ledger: { title: 'Futures ledger', resetHint: 'Backed up before reset; contract and parameter defaults come from the shared layer.' },
   },
   rail: {
     label: 'K-line', placeholder: 'Load a quote to show the daily chart', hint: 'Daily bars from FTShare, up to 240',

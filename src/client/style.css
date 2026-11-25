@@ -776,3 +776,28 @@
   align-items: center;
   gap: 10px;
 }
+
+/* ------------------------------------------------------------ 股票 / 期货切换 */
+
+.paper-trading-mode {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.paper-trading-futures {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  padding: 0 20px 20px;
+  gap: 4px;
+}
+
+.paper-trading-futures-meta {
+  padding: 0 0 8px;
+}
+
+.paper-trading-futures .paper-trading-stats {
+  padding: 0 0 12px;
+}

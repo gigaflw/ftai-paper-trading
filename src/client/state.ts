@@ -9,8 +9,11 @@
 
 import type {
   AccountView, AccountsView, Bar, CashFlowEntry, CompareView, DataSourceView, DayReport, FillView,
-  LedgerExport, LedgerSnapshotsView, MarketListResult, MarketStatus, OrderDraft, OrderView, Period,
-  PreviewView, Quote, ReviewView, RoundTrip, SymbolHit, TabKey,
+  FuturesAccountView, FuturesCashFlowEntry, FuturesContractView, FuturesContractsResult, FuturesDraft,
+  FuturesFillView, FuturesLedgerExport, FuturesMarketStatus, FuturesOrderView, FuturesPositionView,
+  FuturesPreviewView, FuturesQuoteView, FuturesReviewView, FuturesTabKey, LedgerExport,
+  LedgerSnapshotsView, MarketListResult, MarketStatus, OrderDraft, OrderView, Period, PreviewView,
+  Quote, ReviewView, RoundTrip, SymbolHit, TabKey,
 } from '@clrstn2830h/plugin-paper-trading/types'
 
 /** remote 调用的结果信封（与 `@ftai/plugin-sdk/remote` 的 `RemoteResult` 同形）。 */
@@ -24,8 +27,37 @@ export interface PaperTradingPort {
   dataSource(): Promise<Result<DataSourceView>>
 }
 
+/** 期货面板的状态：与股票面板分开，任一账户出错不拖累另一边。 */
+export interface FuturesBoard {
+  account: FuturesAccountView | null
+  status: FuturesMarketStatus | null
+  positions: FuturesPositionView[]
+  orders: FuturesOrderView[]
+  trades: FuturesFillView[]
+  preview: FuturesPreviewView | null
+  previewBusy: boolean
+  review: FuturesReviewView | null
+  cashFlow: FuturesCashFlowEntry[]
+  contracts: FuturesContractView[]
+  quote: FuturesQuoteView | null
+  quoteSymbol: string
+  /** 输入或选中的合约代码（行情口径，如 `RB2611.SHFE`）。 */
+  symbol: string
+  lastOrder: FuturesOrderView | null
+  ledger: LedgerSnapshotsView | null
+  ledgerExport: FuturesLedgerExport | null
+  busy: string
+  errorCode: string
+  errorMessage: string
+  tab: FuturesTabKey
+  period: Period
+}
+
 export interface BoardSnapshot {
   ready: boolean
+  /** 当前面板：股票或期货。 */
+  mode: 'stock' | 'futures'
+  futures: FuturesBoard
   /** 正在做的账本操作（`board` / `order` / `cancel` / `review` / `data` / `cash` / `ledger` / `accounts`），空串表示空闲。 */
   busy: string
   /** 最近一次失败的稳定错误码；空串表示没有错误。 */
@@ -107,6 +139,13 @@ export function createBoard() {
   const listeners = new Set<() => void>()
   let snapshot: BoardSnapshot = {
     ready: false, busy: '', errorCode: '', errorMessage: '', tab: 'trade',
+    mode: 'stock',
+    futures: {
+      account: null, status: null, positions: [], orders: [], trades: [], preview: null,
+      previewBusy: false, review: null, cashFlow: [], contracts: [], quote: null, quoteSymbol: '',
+      symbol: '', lastOrder: null, ledger: null, ledgerExport: null, busy: '', errorCode: '',
+      errorMessage: '', tab: 'trade', period: '30d',
+    },
     accounts: null, accountId: '', account: null, orders: [],
     symbol: DEFAULT_SYMBOL, quote: null, quoteSymbol: '', quoteBusy: false,
     preview: null, previewBusy: false,
@@ -127,6 +166,11 @@ export function createBoard() {
   let detailGeneration = 0
   let compareGeneration = 0
   let marketGeneration = 0
+  let futuresGeneration = 0
+  let futuresQuoteGeneration = 0
+  let futuresPreviewGeneration = 0
+  let futuresReviewGeneration = 0
+  let futuresContractGeneration = 0
 
   const publish = (patch: Partial<BoardSnapshot>) => {
     if (!alive) return
@@ -652,6 +696,245 @@ export function createBoard() {
     }
   }
 
+
+  const publishFutures = (patch: Partial<FuturesBoard>) => {
+    publish({ futures: { ...snapshot.futures, ...patch } })
+  }
+
+  /** 期货账户的一份快照：账户、时段、持仓、委托、成交与资金流水。 */
+  async function futuresBundle(scope: { port: PaperTradingPort }) {
+    const rpc = (endpoint: string, payload?: unknown) => unwrap(scope, scope.port.rpc(endpoint, payload))
+    const [account, status, positions, orders, trades, cashFlow] = await Promise.all([
+      rpc('futures/account/get') as Promise<FuturesAccountView>,
+      rpc('futures/status').catch(() => null) as Promise<FuturesMarketStatus | null>,
+      rpc('futures/positions').catch(() => [] as FuturesPositionView[]) as Promise<FuturesPositionView[]>,
+      rpc('futures/orders').catch(() => [] as FuturesOrderView[]) as Promise<FuturesOrderView[]>,
+      rpc('futures/trades').catch(() => [] as FuturesFillView[]) as Promise<FuturesFillView[]>,
+      rpc('futures/cash/flow').catch(() => [] as FuturesCashFlowEntry[]) as Promise<FuturesCashFlowEntry[]>,
+    ])
+    return { account, status, positions, orders, trades, cashFlow }
+  }
+
+  /** 切到期货面板（或刷新）：首次进入会创建期货账本。 */
+  async function loadFutures(): Promise<void> {
+    const scope = owner
+    if (!alive || scope === undefined) return
+    const token = ++futuresGeneration
+    publishFutures({ busy: 'board', errorCode: '', errorMessage: '' })
+    try {
+      const bundle = await futuresBundle(scope)
+      if (token !== futuresGeneration) return
+      publishFutures({ busy: '', ...bundle })
+      void loadFuturesContracts('')
+    } catch (error) {
+      if (token !== futuresGeneration) return
+      const patch = fail(error)
+      publishFutures({ busy: '', ...patch })
+    }
+  }
+
+  /** 切换股票 / 期货面板。 */
+  function setMode(mode: 'stock' | 'futures'): void {
+    if (!alive) return
+    publish({ mode })
+    if (mode === 'futures' && snapshot.futures.account === null) void loadFutures()
+  }
+
+  /** 合约搜索：空串返回当前可交易合约（按数据源分页上限）。 */
+  async function loadFuturesContracts(query: string): Promise<void> {
+    const scope = owner
+    if (!alive || scope === undefined) return
+    const token = ++futuresContractGeneration
+    try {
+      const result = await unwrap(scope, scope.port.rpc('futures/contracts', { query: query.trim(), limit: 20 })) as FuturesContractsResult
+      if (token !== futuresContractGeneration) return
+      publishFutures({ contracts: result.contracts ?? [] })
+    } catch {
+      if (token !== futuresContractGeneration) return
+      publishFutures({ contracts: [] })
+    }
+  }
+
+  /** 选中合约后取行情；输入不完整时接口会报错，按数据不可用处理。 */
+  async function loadFuturesQuote(symbol: string): Promise<void> {
+    const scope = owner
+    if (!alive || scope === undefined) return
+    const trimmed = symbol.trim().toUpperCase()
+    publishFutures({ symbol: trimmed, preview: null, contracts: [] })
+    if (trimmed === '') return
+    const token = ++futuresQuoteGeneration
+    try {
+      const result = await unwrap(scope, scope.port.rpc('futures/quote', { symbols: [trimmed] })) as { quotes: FuturesQuoteView[] }
+      if (token !== futuresQuoteGeneration) return
+      const quote = result.quotes[0] ?? null
+      publishFutures({ quote, quoteSymbol: quote === null ? '' : quote.symbol })
+    } catch (error) {
+      if (token !== futuresQuoteGeneration) return
+      const patch = fail(error)
+      publishFutures({ quote: null, quoteSymbol: '', ...patch })
+    }
+  }
+
+  /** 期货试算；与股票一样自动触发。 */
+  async function loadFuturesPreview(draft: FuturesDraft): Promise<void> {
+    const scope = owner
+    if (!alive || scope === undefined) return
+    const token = ++futuresPreviewGeneration
+    publishFutures({ previewBusy: true })
+    try {
+      const preview = await unwrap(scope, scope.port.rpc('futures/preview', draft)) as FuturesPreviewView
+      if (token !== futuresPreviewGeneration) return
+      publishFutures({ previewBusy: false, preview })
+    } catch {
+      if (token !== futuresPreviewGeneration) return
+      publishFutures({ previewBusy: false, preview: null })
+    }
+  }
+
+  /** 提交期货委托。 */
+  async function submitFutures(draft: FuturesDraft): Promise<void> {
+    const scope = owner
+    if (!alive || scope === undefined) return
+    const token = ++futuresGeneration
+    publishFutures({ busy: 'order', errorCode: '', errorMessage: '' })
+    try {
+      const order = await unwrap(scope, scope.port.rpc('futures/order', { draft, requestId: crypto.randomUUID() })) as FuturesOrderView
+      const bundle = await futuresBundle(scope)
+      if (token !== futuresGeneration) return
+      publishFutures({ busy: '', ...bundle, lastOrder: order, preview: null })
+    } catch (error) {
+      if (token !== futuresGeneration) return
+      const patch = fail(error)
+      publishFutures({ busy: '', ...patch })
+    }
+  }
+
+  /** 撤期货单。 */
+  async function cancelFutures(orderId: string): Promise<void> {
+    const scope = owner
+    if (!alive || scope === undefined) return
+    const token = ++futuresGeneration
+    publishFutures({ busy: 'cancel', errorCode: '', errorMessage: '' })
+    try {
+      await unwrap(scope, scope.port.rpc('futures/cancel', { orderId }))
+      const bundle = await futuresBundle(scope)
+      if (token !== futuresGeneration) return
+      publishFutures({ busy: '', ...bundle })
+    } catch (error) {
+      if (token !== futuresGeneration) return
+      const patch = fail(error)
+      publishFutures({ busy: '', ...patch })
+    }
+  }
+
+  /** 期货复盘。 */
+  async function loadFuturesReview(period: Period = '30d'): Promise<void> {
+    const scope = owner
+    if (!alive || scope === undefined) return
+    const token = ++futuresReviewGeneration
+    publishFutures({ period, busy: 'review', errorCode: '', errorMessage: '' })
+    try {
+      const review = await unwrap(scope, scope.port.rpc('futures/review', { period })) as FuturesReviewView
+      if (token !== futuresReviewGeneration) return
+      publishFutures({ busy: '', review })
+    } catch (error) {
+      if (token !== futuresReviewGeneration) return
+      const patch = fail(error)
+      publishFutures({ busy: '', review: null, ...patch })
+    }
+  }
+
+  /** 期货注资/提款并重读账户与流水。 */
+  async function moveFuturesCash(kind: 'deposit' | 'withdraw', amount: number): Promise<string> {
+    const scope = owner
+    if (!alive || scope === undefined) return 'paper-trading/unavailable'
+    const token = ++futuresGeneration
+    publishFutures({ busy: 'cash', errorCode: '', errorMessage: '' })
+    try {
+      await unwrap(scope, scope.port.rpc(kind === 'deposit' ? 'futures/account/deposit' : 'futures/account/withdraw', { amount }))
+      const [account, cashFlow] = await Promise.all([
+        unwrap(scope, scope.port.rpc('futures/account/get')) as Promise<FuturesAccountView>,
+        unwrap(scope, scope.port.rpc('futures/cash/flow')) as Promise<FuturesCashFlowEntry[]>,
+      ])
+      if (token !== futuresGeneration) return ''
+      publishFutures({ busy: '', account, cashFlow })
+      return ''
+    } catch (error) {
+      if (token !== futuresGeneration) return ''
+      const patch = fail(error)
+      publishFutures({ busy: '', ...patch })
+      return patch.errorCode
+    }
+  }
+
+  /** 期货账本快照。 */
+  async function loadFuturesLedger(): Promise<string> {
+    const scope = owner
+    if (!alive || scope === undefined) return 'paper-trading/unavailable'
+    const token = ++futuresGeneration
+    publishFutures({ busy: 'ledger', errorCode: '', errorMessage: '' })
+    try {
+      const ledger = await unwrap(scope, scope.port.rpc('futures/ledger/list')) as LedgerSnapshotsView
+      if (token !== futuresGeneration) return ''
+      publishFutures({ busy: '', ledger })
+      return ''
+    } catch (error) {
+      if (token !== futuresGeneration) return ''
+      const patch = fail(error)
+      publishFutures({ busy: '', ...patch })
+      return patch.errorCode
+    }
+  }
+
+  /** 期货账本：备份、恢复、导出与重置。 */
+  async function futuresLedgerAction(endpoint: string, payload?: unknown): Promise<string> {
+    const scope = owner
+    if (!alive || scope === undefined) return 'paper-trading/unavailable'
+    const token = ++futuresGeneration
+    publishFutures({ busy: 'ledger', errorCode: '', errorMessage: '' })
+    try {
+      const value = await unwrap(scope, scope.port.rpc(endpoint, payload))
+      if (token !== futuresGeneration) return ''
+      if (endpoint === 'futures/account/export') {
+        publishFutures({ busy: '', ledgerExport: value as FuturesLedgerExport })
+        return ''
+      }
+      const bundle = await futuresBundle(scope)
+      if (token !== futuresGeneration) return ''
+      publishFutures({ busy: '', ...bundle })
+      return ''
+    } catch (error) {
+      if (token !== futuresGeneration) return ''
+      const patch = fail(error)
+      publishFutures({ busy: '', ...patch })
+      return patch.errorCode
+    }
+  }
+
+  async function backupFuturesLedger(): Promise<string> {
+    const code = await futuresLedgerAction('futures/ledger/backup')
+    await loadFuturesLedger()
+    return code
+  }
+
+  async function restoreFuturesLedger(name: string): Promise<string> {
+    const code = await futuresLedgerAction('futures/ledger/restore', { name, confirm: true })
+    await loadFuturesLedger()
+    return code
+  }
+
+  async function resetFuturesAccount(): Promise<string> {
+    const code = await futuresLedgerAction('futures/account/reset', { confirm: true })
+    await loadFuturesLedger()
+    return code
+  }
+
+  function setFuturesTab(tab: FuturesTabKey): void {
+    if (!alive || snapshot.futures.tab === tab) return
+    publishFutures({ tab })
+    if (tab === 'review' && snapshot.futures.review === null) void loadFuturesReview(snapshot.futures.period)
+  }
+
   return {
     getSnapshot: () => snapshot,
     subscribe(listener: () => void) {
@@ -673,6 +956,22 @@ export function createBoard() {
         publish({ ready: false, busy: '', preview: null, bars: [], barsLoading: false, ledger: null, ledgerExport: null })
       }
     },
+    setMode,
+    loadFutures,
+    loadFuturesContracts,
+    loadFuturesQuote,
+    loadFuturesPreview,
+    submitFutures,
+    cancelFutures,
+    loadFuturesReview,
+    setFuturesTab,
+    depositFutures: (amount: number) => moveFuturesCash('deposit', amount),
+    withdrawFutures: (amount: number) => moveFuturesCash('withdraw', amount),
+    loadFuturesLedger,
+    backupFuturesLedger,
+    restoreFuturesLedger,
+    exportFuturesLedger: () => futuresLedgerAction('futures/account/export'),
+    resetFuturesAccount,
     setTab(tab: TabKey) {
       if (!alive || snapshot.tab === tab) return
       publish({ tab })
