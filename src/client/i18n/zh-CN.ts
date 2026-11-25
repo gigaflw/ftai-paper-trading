@@ -3,7 +3,8 @@ export default {
   feature: { title: '模拟交易' },
   subtitle: '本地模拟盘 · 账本来自 dsh 版插件共享层',
   loading: '正在读取账本…',
-  tabs: { label: '视图', trade: '交易', positions: '持仓', orders: '订单', review: '复盘' },
+  tabs: { label: '视图', trade: '交易', positions: '持仓', orders: '订单', review: '复盘', compare: '对比', market: '行情' },
+  board: { all: '全部', main: '主板', star: '科创板', chiNext: '创业板', bjse: '北交所', xshg: '沪市', xshe: '深市' },
   account: {
     picker: '账户', totalAssets: '总资产', cash: '可用现金', marketValue: '持仓市值',
     dayPnl: '今日盈亏', totalPnl: '累计盈亏',
@@ -84,6 +85,29 @@ export default {
     period: '区间', period7d: '近 7 天', period30d: '近 30 天', periodAll: '全部',
     trades: '成交笔数', realizedPnl: '已实现盈亏', maxDrawdown: '最大回撤', fees: '累计费用',
     equity: '权益曲线', equityHint: '按账本的逐日快照绘制', empty: '还没有可复盘的记录',
+    cashTitle: '资金流水',
+    daily: {
+      title: '日终报告', equity: '期末总资产', cash: '期末现金', dayPnl: '当日盈亏',
+      fees: '当日费用', available: '可用资金', positions: '持仓数',
+      gaps: '{count} 只标的缺少收盘价，按上一口价结算',
+    },
+    closeSource: { daily: '日线收盘价', last: '最后一口价', missing: '缺收盘价' },
+    roundTrips: {
+      title: '交易配对', qty: '数量', cost: '买入成本', proceeds: '卖出收入',
+      pnl: '已实现盈亏', holdingDays: '持有天数', empty: '还没有配对的交易',
+    },
+  },
+  compare: {
+    title: '账户对比', empty: '还没有可对比的账户', account: '账户', equity: '总资产',
+    pnl: '收益率', drawdown: '最大回撤', trades: '成交笔数', state: '状态',
+    normal: '正常', missing: '账本缺失',
+    hint: '各账户净值曲线以首日为 100 归一化，按收益率排序',
+  },
+  market: {
+    boards: '板块', shortlistOnly: '只看备选', searchPlaceholder: '搜索代码或名称',
+    empty: '没有行情；连接 FTShare 数据后重试', symbol: '标的', last: '现价',
+    change: '涨跌幅', prevClose: '昨收', favorite: '备选', unfavorite: '移出备选',
+    prev: '上一页', next: '下一页', page: '第 {page} 页',
   },
   rail: {
     label: 'K 线', placeholder: '查询行情后显示日 K', hint: '日 K 来自 FTShare，最多 240 根',

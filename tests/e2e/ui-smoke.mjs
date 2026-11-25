@@ -164,6 +164,23 @@ const steps = [
     },
   },
   {
+    name: '对比 / 行情标签',
+    async run() {
+      await page.getByRole('tab', { name: '对比' }).click()
+      await page.locator('.paper-trading-compare, .paper-trading-content .paper-trading-empty').first()
+        .waitFor({ state: 'visible', timeout: 20_000 })
+      await shot(page, outDir, '07b-compare')
+
+      await page.getByRole('tab', { name: '行情' }).click()
+      await page.getByRole('group', { name: '板块' }).waitFor({ state: 'visible', timeout: 20_000 })
+      for (const board of ['主板', '全部', '科创板', '创业板']) {
+        assert(await page.getByRole('button', { name: board, exact: true }).count() === 1, `行情缺少板块「${board}」`)
+      }
+      await shot(page, outDir, '07c-market')
+      await page.getByRole('tab', { name: '交易' }).click()
+    },
+  },
+  {
     name: '非法代码提示',
     async run() {
       await input().fill('123456')

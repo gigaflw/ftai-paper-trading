@@ -3,7 +3,8 @@ export default {
   feature: { title: 'Paper Trading' },
   subtitle: 'Local paper ledger · shared business layer from the dsh plugin',
   loading: 'Loading ledger…',
-  tabs: { label: 'Views', trade: 'Trade', positions: 'Positions', orders: 'Orders', review: 'Review' },
+  tabs: { label: 'Views', trade: 'Trade', positions: 'Positions', orders: 'Orders', review: 'Review', compare: 'Compare', market: 'Market' },
+  board: { all: 'All', main: 'Main board', star: 'STAR', chiNext: 'ChiNext', bjse: 'BSE', xshg: 'Shanghai', xshe: 'Shenzhen' },
   account: {
     picker: 'Account', totalAssets: 'Total assets', cash: 'Available cash', marketValue: 'Market value',
     dayPnl: "Today's P&L", totalPnl: 'Total P&L',
@@ -84,6 +85,29 @@ export default {
     period: 'Period', period7d: 'Last 7 days', period30d: 'Last 30 days', periodAll: 'All',
     trades: 'Fills', realizedPnl: 'Realized P&L', maxDrawdown: 'Max drawdown', fees: 'Fees',
     equity: 'Equity curve', equityHint: 'Drawn from the ledger daily snapshots', empty: 'Nothing to review yet',
+    cashTitle: 'Cash flow',
+    daily: {
+      title: 'End-of-day report', equity: 'Closing equity', cash: 'Closing cash', dayPnl: 'Day P&L',
+      fees: 'Day fees', available: 'Available cash', positions: 'Positions',
+      gaps: '{count} symbols had no closing price and settled at the last quote',
+    },
+    closeSource: { daily: 'Daily close', last: 'Last quote', missing: 'No close price' },
+    roundTrips: {
+      title: 'Round trips', qty: 'Qty', cost: 'Cost', proceeds: 'Proceeds',
+      pnl: 'Realized P&L', holdingDays: 'Held (days)', empty: 'No round trips yet',
+    },
+  },
+  compare: {
+    title: 'Compare accounts', empty: 'No accounts to compare', account: 'Account', equity: 'Equity',
+    pnl: 'Return', drawdown: 'Max drawdown', trades: 'Fills', state: 'State',
+    normal: 'Normal', missing: 'Ledger missing',
+    hint: 'Each equity curve is normalised to 100 on its first day and ranked by return',
+  },
+  market: {
+    boards: 'Boards', shortlistOnly: 'Watchlist only', searchPlaceholder: 'Search code or name',
+    empty: 'No quotes; connect FTShare data and retry', symbol: 'Symbol', last: 'Last',
+    change: 'Change', prevClose: 'Prev close', favorite: 'Watchlist', unfavorite: 'Remove from watchlist',
+    prev: 'Previous', next: 'Next', page: 'Page {page}',
   },
   rail: {
     label: 'K-line', placeholder: 'Load a quote to show the daily chart', hint: 'Daily bars from FTShare, up to 240',

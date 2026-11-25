@@ -8,9 +8,9 @@
  */
 
 import type {
-  AccountView, AccountsView, Bar, CashFlowEntry, DataSourceView, FillView, LedgerExport,
-  LedgerSnapshotsView, MarketStatus, OrderDraft, OrderView, Period, PreviewView, Quote, ReviewView,
-  TabKey,
+  AccountView, AccountsView, Bar, CashFlowEntry, CompareView, DataSourceView, DayReport, FillView,
+  LedgerExport, LedgerSnapshotsView, MarketListResult, MarketStatus, OrderDraft, OrderView, Period,
+  PreviewView, Quote, ReviewView, RoundTrip, SymbolHit, TabKey,
 } from '@clrstn2830h/plugin-paper-trading/types'
 
 /** remote 调用的结果信封（与 `@ftai/plugin-sdk/remote` 的 `RemoteResult` 同形）。 */
@@ -47,6 +47,20 @@ export interface BoardSnapshot {
   preview: PreviewView | null
   previewBusy: boolean
   review: ReviewView | null
+  /** 复盘明细：日终报告数组与交易配对（`review/daily`、`review/roundtrips`）。 */
+  reviewDaily: DayReport[] | null
+  roundTrips: RoundTrip[] | null
+  /** 账户对比（`compare/get`）。 */
+  compare: CompareView | null
+  /** 行情列表（`market/list`）与当前板块/页码。 */
+  marketList: MarketListResult | null
+  marketBusy: boolean
+  marketBoard: string
+  marketPage: number
+  /** 行情搜索结果（`market/search`）。 */
+  marketHits: SymbolHit[]
+  /** 备选（自选）标的（`shortlist/*`）。 */
+  shortlist: string[]
   dataSource: DataSourceView | null
   /** 最近一次成功的委托（用于下单回执，不参与业务状态）。 */
   lastOrder: OrderView | null
@@ -96,7 +110,9 @@ export function createBoard() {
     accounts: null, accountId: '', account: null, orders: [],
     symbol: DEFAULT_SYMBOL, quote: null, quoteSymbol: '', quoteBusy: false,
     preview: null, previewBusy: false,
-    review: null, dataSource: null, lastOrder: null, bars: [], barsLoading: false,
+    review: null, reviewDaily: null, roundTrips: null, compare: null,
+    marketList: null, marketBusy: false, marketBoard: 'main', marketPage: 1, marketHits: [],
+    shortlist: [], dataSource: null, lastOrder: null, bars: [], barsLoading: false,
     status: null, trades: [], cashFlow: [], ledger: null, ledgerExport: null,
   }
   let alive = true
@@ -108,6 +124,9 @@ export function createBoard() {
   let previewGeneration = 0
   let barsGeneration = 0
   let reviewGeneration = 0
+  let detailGeneration = 0
+  let compareGeneration = 0
+  let marketGeneration = 0
 
   const publish = (patch: Partial<BoardSnapshot>) => {
     if (!alive) return
@@ -217,7 +236,7 @@ export function createBoard() {
     if (!alive || scope === undefined || accountId === snapshot.accountId) return
     const token = ++generation
     previewGeneration += 1
-    publish({ accountId, busy: 'board', errorCode: '', errorMessage: '', preview: null, review: null, lastOrder: null })
+    publish({ accountId, busy: 'board', errorCode: '', errorMessage: '', preview: null, review: null, reviewDaily: null, roundTrips: null, lastOrder: null })
     try {
       const bundle = await accountBundle(scope, accountId)
       if (token !== generation) return
@@ -351,7 +370,7 @@ export function createBoard() {
     }
   }
 
-  /** 复盘；权益曲线来自账本的逐日快照。 */
+  /** 复盘；权益曲线来自账本的逐日快照，同时补日终报告与交易配对。 */
   async function loadReview(period: Period = PERIOD): Promise<void> {
     const scope = owner
     if (!alive || scope === undefined) return
@@ -361,10 +380,113 @@ export function createBoard() {
       const review = await unwrap(scope, scope.port.rpc('review/get', { period }, snapshot.accountId)) as ReviewView
       if (token !== reviewGeneration) return
       publish({ busy: '', review })
+      void loadReviewDetail()
     } catch (error) {
       if (token !== reviewGeneration) return
       publish({ busy: '', review: null, ...fail(error) })
     }
+  }
+
+  /** 复盘明细：日终报告、交易配对与资金流水；单条失败不影响其它块。 */
+  async function loadReviewDetail(): Promise<void> {
+    const scope = owner
+    if (!alive || scope === undefined) return
+    const token = ++detailGeneration
+    try {
+      const [reviewDaily, roundTrips, cashFlow] = await Promise.all([
+        unwrap(scope, scope.port.rpc('review/daily', {}, snapshot.accountId)).catch(() => [] as DayReport[]) as Promise<DayReport[]>,
+        unwrap(scope, scope.port.rpc('review/roundtrips', {}, snapshot.accountId)).catch(() => [] as RoundTrip[]) as Promise<RoundTrip[]>,
+        unwrap(scope, scope.port.rpc('cash/flow', {}, snapshot.accountId)).catch(() => [] as CashFlowEntry[]) as Promise<CashFlowEntry[]>,
+      ])
+      if (token !== detailGeneration) return
+      publish({ reviewDaily, roundTrips, cashFlow })
+    } catch {
+      // 明细是加分项：失败时保留空块，不覆盖顶部错误。
+    }
+  }
+
+  /** 账户对比：净值曲线归一化与排名由界面做，这里只取每账户一行。 */
+  async function loadCompare(): Promise<void> {
+    const scope = owner
+    if (!alive || scope === undefined) return
+    const token = ++compareGeneration
+    publish({ busy: 'compare', errorCode: '', errorMessage: '' })
+    try {
+      const compare = await unwrap(scope, scope.port.rpc('compare/get')) as CompareView
+      if (token !== compareGeneration) return
+      publish({ busy: '', compare })
+    } catch (error) {
+      if (token !== compareGeneration) return
+      publish({ busy: '', compare: null, ...fail(error) })
+    }
+  }
+
+  /** 行情列表：按板块与页码翻页；同时刷新备选。 */
+  async function loadMarket(board: string = snapshot.marketBoard, page: number = snapshot.marketPage): Promise<void> {
+    const scope = owner
+    if (!alive || scope === undefined) return
+    const token = ++marketGeneration
+    publish({ marketBusy: true, marketBoard: board, marketPage: page, errorCode: '', errorMessage: '' })
+    try {
+      const marketList = await unwrap(scope, scope.port.rpc('market/list', { board, page, pageSize: 50 }, snapshot.accountId)) as MarketListResult
+      if (token !== marketGeneration) return
+      publish({ marketBusy: false, marketList })
+    } catch (error) {
+      if (token !== marketGeneration) return
+      publish({ marketBusy: false, ...fail(error) })
+    }
+  }
+
+  /** 搜代码/名称，结果留在快照里给下拉列表。 */
+  async function searchMarket(query: string): Promise<void> {
+    const scope = owner
+    if (!alive || scope === undefined) return
+    const trimmed = query.trim()
+    if (trimmed === '') {
+      publish({ marketHits: [] })
+      return
+    }
+    try {
+      const marketHits = await unwrap(scope, scope.port.rpc('market/search', { query: trimmed, limit: 10 }, snapshot.accountId)) as SymbolHit[]
+      publish({ marketHits })
+    } catch {
+      publish({ marketHits: [] })
+    }
+  }
+
+  /** 读备选；失败时保持原样。 */
+  async function loadShortlist(): Promise<void> {
+    const scope = owner
+    if (!alive || scope === undefined) return
+    try {
+      const view = await unwrap(scope, scope.port.rpc('shortlist/get', {}, snapshot.accountId)) as { symbols: string[] }
+      publish({ shortlist: view.symbols })
+    } catch {
+      // 备选是加分项。
+    }
+  }
+
+  /** 加/去备选；乐观更新后以服务端返回为准。 */
+  async function toggleShortlist(symbol: string): Promise<void> {
+    const scope = owner
+    if (!alive || scope === undefined) return
+    const next = snapshot.shortlist.includes(symbol)
+      ? snapshot.shortlist.filter(item => item !== symbol)
+      : [...snapshot.shortlist, symbol]
+    publish({ shortlist: next })
+    try {
+      const view = await unwrap(scope, scope.port.rpc('shortlist/set', { symbols: next }, snapshot.accountId)) as { symbols: string[] }
+      publish({ shortlist: view.symbols })
+    } catch (error) {
+      publish({ shortlist: snapshot.shortlist, ...fail(error) })
+    }
+  }
+
+  /** 从行情行/搜索结果把标的带进交易页。 */
+  async function adoptSymbol(symbol: string): Promise<void> {
+    if (!alive) return
+    publish({ tab: 'trade', marketHits: [] })
+    await loadQuote(symbol)
   }
 
   /** 注资/提款：金额单位元；成功后重读账户与流水。返回空串表示成功。 */
@@ -555,6 +677,11 @@ export function createBoard() {
       if (!alive || snapshot.tab === tab) return
       publish({ tab })
       if (tab === 'review' && snapshot.review === null) void loadReview()
+      if (tab === 'compare' && snapshot.compare === null) void loadCompare()
+      if (tab === 'market') {
+        void loadShortlist()
+        void loadMarket()
+      }
     },
     setSymbol(symbol: string) {
       if (!alive) return
@@ -569,6 +696,13 @@ export function createBoard() {
     submit,
     cancel,
     loadReview,
+    loadReviewDetail,
+    loadCompare,
+    loadMarket,
+    searchMarket,
+    loadShortlist,
+    toggleShortlist,
+    adoptSymbol,
     deposit: (amount: number) => moveCash('deposit', amount),
     withdraw: (amount: number) => moveCash('withdraw', amount),
     loadLedger,

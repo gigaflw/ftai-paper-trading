@@ -7,15 +7,22 @@ import type { StockChartCandle, StockChartSeries } from '@ftai/plugin-sdk/app'
 import Decimal from 'decimal.js'
 import type { MessageScope } from '@ftai/plugin-sdk/features'
 import {
-  IconAlertTriangle, IconBook, IconChartCandle, IconChevronLeft, IconChevronRight, IconRefresh, IconWallet,
+  IconAlertTriangle, IconBook, IconChartCandle, IconChevronLeft, IconChevronRight, IconRefresh,
+  IconStar, IconStarFilled, IconWallet,
 } from '@tabler/icons-react'
 import type {
-  Bar, DataSourceView, FillView, MarketStatus, OrderDraft, OrderView, PositionView, PreviewView,
-  Quote, ReviewView, TabKey,
+  Bar, CashFlowEntry, CompareRow, DataSourceView, DayReport, FillView, MarketStatus, OrderDraft,
+  OrderView, PositionView, PreviewView, Quote, ReviewView, RoundTrip, TabKey,
 } from '@clrstn2830h/plugin-paper-trading/types'
 import { canonicalId, type Board, type BoardSnapshot } from './state.ts'
 
-const TABS: readonly TabKey[] = ['trade', 'positions', 'orders', 'review']
+const TABS: readonly TabKey[] = ['trade', 'positions', 'orders', 'review', 'compare', 'market']
+const BOARDS: readonly { value: string; label: string }[] = [
+  { value: 'main', label: 'board.main' }, { value: 'all', label: 'board.all' },
+  { value: 'star', label: 'board.star' }, { value: 'chi_next', label: 'board.chiNext' },
+  { value: 'bjse', label: 'board.bjse' }, { value: 'xshg', label: 'board.xshg' },
+  { value: 'xshe', label: 'board.xshe' },
+]
 const SIDES: readonly ('buy' | 'sell')[] = ['buy', 'sell']
 const TYPES: readonly ('market' | 'limit')[] = ['market', 'limit']
 const PERIODS: readonly ('7d' | '30d' | 'all')[] = ['7d', '30d', 'all']
@@ -302,8 +309,18 @@ export function createViews(messages: MessageScope, board: Board, prefs?: AppPre
                 onClick={() => void board.loadReview(period)}>{t(`review.period${period}`)}</Button>)}
             </div>
             <ReviewBlock review={review} money={money} t={t} n={n} loading={snapshot.busy === 'review'} />
+            <DayReportBlock reports={snapshot.reviewDaily} money={money} t={t} n={n} d={d} />
+            <RoundTripsTable rows={snapshot.roundTrips} money={money} t={t} n={n} />
+            <section className="paper-trading-trades">
+              <h4 className="paper-trading-dialog-subtitle">{t('review.cashTitle')}</h4>
+              <CashFlowTable flow={snapshot.cashFlow} money={money} t={t} d={d} />
+            </section>
           </>
         }
+        case 'compare':
+          return <CompareBlock view={snapshot.compare} money={money} t={t} n={n} loading={snapshot.busy === 'compare'} />
+        case 'market':
+          return <MarketTab board={board} snapshot={snapshot} t={t} money={money} n={n} />
       }
     }
 
@@ -577,22 +594,7 @@ function CashDialog(props: {
         </div>
         {error !== '' && <p className="paper-trading-error-text" role="alert">{props.text(error)}</p>}
         <h4 className="paper-trading-dialog-subtitle">{t('cash.flowTitle')}</h4>
-        {flow.length === 0
-          ? <div className="paper-trading-empty">{t('cash.empty')}</div>
-          : <div className="paper-trading-table-wrap paper-trading-dialog-table">
-            <table className="paper-trading-table">
-              <thead><tr>
-                <th>{t('cash.time')}</th><th>{t('cash.type')}</th>
-                <th className="is-num">{t('cash.amount')}</th><th className="is-num">{t('cash.balance')}</th>
-              </tr></thead>
-              <tbody>{flow.slice(-20).reverse().map((entry, index) => <tr key={`${entry.ts}-${index}`}>
-                <td className="is-num">{d(new Date(entry.ts), { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</td>
-                <td>{t(`cash.kind.${entry.type}`)}</td>
-                <td className={`is-num paper-trading-mono ${entry.amount < 0 ? 'is-down' : 'is-up'}`}>{money(entry.amount)}</td>
-                <td className="is-num paper-trading-mono">{money(entry.balance)}</td>
-              </tr>)}</tbody>
-            </table>
-          </div>}
+        <CashFlowTable flow={flow} money={money} t={t} d={d} />
       </div>
       <DialogFooter><Button variant="ghost" size="sm" onClick={props.onClose}>{t('actions.close')}</Button></DialogFooter>
     </DialogContent>
@@ -886,6 +888,252 @@ function TradesTable(props: {
         </table>
       </div>}
   </section>
+}
+
+
+/** 资金流水表：资金面板与复盘共用。 */
+function CashFlowTable(props: {
+  flow: readonly CashFlowEntry[]
+  money: (value: number) => string
+  t: MessageScope['t']
+  d: MessageScope['d']
+}) {
+  if (props.flow.length === 0) return <div className="paper-trading-empty">{props.t('cash.empty')}</div>
+  return <div className="paper-trading-table-wrap paper-trading-dialog-table">
+    <table className="paper-trading-table">
+      <thead><tr>
+        <th>{props.t('cash.time')}</th><th>{props.t('cash.type')}</th>
+        <th className="is-num">{props.t('cash.amount')}</th><th className="is-num">{props.t('cash.balance')}</th>
+      </tr></thead>
+      <tbody>{props.flow.slice(-30).reverse().map((entry, index) => <tr key={`${entry.ts}-${index}`}>
+        <td className="is-num">{props.d(new Date(entry.ts), { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</td>
+        <td>{props.t(`cash.kind.${entry.type}`)}</td>
+        <td className={`is-num paper-trading-mono ${entry.amount < 0 ? 'is-down' : 'is-up'}`}>{props.money(entry.amount)}</td>
+        <td className="is-num paper-trading-mono">{props.money(entry.balance)}</td>
+      </tr>)}</tbody>
+    </table>
+  </div>
+}
+
+/** 复盘 · 日终报告：昨天收盘时账本记下的那一份，带收盘来源与缺口。 */
+function DayReportBlock(props: {
+  reports: readonly DayReport[] | null
+  money: (value: number) => string
+  t: MessageScope['t']
+  n: MessageScope['n']
+  d: MessageScope['d']
+}) {
+  const report: DayReport | null = props.reports === null || props.reports.length === 0
+    ? null : props.reports[props.reports.length - 1] ?? null
+  if (report === null) return null
+  const rows: { label: string; value: string }[] = [
+    { label: props.t('review.daily.equity'), value: props.money(report.equity) },
+    { label: props.t('review.daily.cash'), value: props.money(report.cash) },
+    { label: props.t('review.daily.dayPnl'), value: props.money(report.dayPnl) },
+    { label: props.t('review.daily.fees'), value: props.money(report.fees) },
+    { label: props.t('review.daily.available'), value: props.n(report.available) },
+    { label: props.t('review.daily.positions'), value: props.n(report.positions.length) },
+  ]
+  return <section className="paper-trading-review-section">
+    <div className="paper-trading-review-head">
+      <h4 className="paper-trading-dialog-subtitle">{props.t('review.daily.title')}</h4>
+      <span className="paper-trading-note">
+        {report.date} · {props.t(`review.closeSource.${report.closeSource}`)}
+      </span>
+    </div>
+    <div className="paper-trading-daily-grid">
+      {rows.map(row => <div key={row.label} className="paper-trading-daily-cell">
+        <span>{row.label}</span><strong className="paper-trading-mono">{row.value}</strong>
+      </div>)}
+    </div>
+    {report.positions.length > 0 && <PositionsTable positions={report.positions} money={props.money} t={props.t} n={props.n} />}
+    {Object.keys(report.gaps).length > 0 && <p className="paper-trading-note">
+      {props.t('review.daily.gaps', { count: Object.keys(report.gaps).length })}
+    </p>}
+  </section>
+}
+
+/** 复盘 · 交易配对：按买卖配对后的持有天数与已实现盈亏。 */
+function RoundTripsTable(props: {
+  rows: readonly RoundTrip[] | null
+  money: (value: number) => string
+  t: MessageScope['t']
+  n: MessageScope['n']
+}) {
+  if (props.rows === null) return null
+  return <section className="paper-trading-review-section">
+    <h4 className="paper-trading-dialog-subtitle">{props.t('review.roundTrips.title')}</h4>
+    {props.rows.length === 0
+      ? <div className="paper-trading-empty">{props.t('review.roundTrips.empty')}</div>
+      : <div className="paper-trading-table-wrap paper-trading-dialog-table">
+        <table className="paper-trading-table">
+          <thead><tr>
+            <th>{props.t('positions.symbol')}</th><th className="is-num">{props.t('review.roundTrips.qty')}</th>
+            <th className="is-num">{props.t('review.roundTrips.cost')}</th>
+            <th className="is-num">{props.t('review.roundTrips.proceeds')}</th>
+            <th className="is-num">{props.t('review.roundTrips.pnl')}</th>
+            <th className="is-num">{props.t('review.roundTrips.holdingDays')}</th>
+          </tr></thead>
+          <tbody>{props.rows.slice(0, 50).map((row, index) => <tr key={`${row.symbol}-${index}`}>
+            <td><span className="paper-trading-mono">{row.symbol}</span> {row.name}</td>
+            <td className="is-num">{props.n(row.qty)}</td>
+            <td className="is-num paper-trading-mono">{props.money(row.cost)}</td>
+            <td className="is-num paper-trading-mono">{props.money(row.proceeds)}</td>
+            <td className={`is-num paper-trading-mono ${row.pnl >= 0 ? 'is-up' : 'is-down'}`}>{props.money(row.pnl)}</td>
+            <td className="is-num">{props.n(row.holdingDays)}</td>
+          </tr>)}</tbody>
+        </table>
+      </div>}
+  </section>
+}
+
+const COMPARE_COLORS = ['#1F2A44', '#D93A3A', '#D9962B', '#7A9A82', '#6B7FA3', '#B06AB3', '#3B7B8F', '#A3553B']
+
+/** 账户对比：净值曲线归一化到 100 叠加，按收益排序，附一行硬指标。 */
+function CompareBlock(props: {
+  view: { accounts: readonly CompareRow[] } | null
+  money: (value: number) => string
+  t: MessageScope['t']
+  n: MessageScope['n']
+  loading: boolean
+}) {
+  if (props.view === null) {
+    return <div className="paper-trading-empty">{props.loading ? props.t('loading') : props.t('compare.empty')}</div>
+  }
+  if (props.view.accounts.length === 0) return <div className="paper-trading-empty">{props.t('compare.empty')}</div>
+  const rows = [...props.view.accounts].sort((left, right) => right.pnlPct - left.pnlPct)
+  const series = rows.map((row, index) => {
+    const points = row.points.length > 0 ? row.points : [{ date: '', equity: row.initialCash, cash: 0 }]
+    const base = points[0]?.equity ?? row.initialCash
+    const values = points.map(point => base > 0 ? (point.equity / base) * 100 : 100)
+    return { row, values, color: COMPARE_COLORS[index % COMPARE_COLORS.length] }
+  })
+  const all = series.flatMap(item => item.values)
+  const min = Math.min(100, ...all)
+  const max = Math.max(100, ...all)
+  const span = Math.max(1, max - min)
+  const longest = Math.max(...series.map(item => item.values.length))
+  const toPolyline = (values: readonly number[]) => values.map((value, index) => {
+    const x = values.length <= 1 ? 0 : (index / Math.max(1, longest - 1)) * 600
+    const y = 150 - ((value - min) / span) * 140
+    return `${x.toFixed(1)},${y.toFixed(1)}`
+  }).join(' ')
+  return <section className="paper-trading-compare">
+    <div className="paper-trading-tabs" role="group" aria-label={props.t('compare.title')}>
+      {series.map(item => <span key={item.row.id} className="paper-trading-legend">
+        <i style={{ background: item.color }} />{item.row.name}
+      </span>)}
+    </div>
+    <section className="paper-trading-chart" aria-label={props.t('compare.title')}>
+      <div className="paper-trading-chart-scale"><span>{props.n(max / 100, { style: 'percent', maximumFractionDigits: 1 })}</span>
+        <span>{props.n(min / 100, { style: 'percent', maximumFractionDigits: 1 })}</span></div>
+      <svg viewBox="0 0 600 160" preserveAspectRatio="none" role="img" aria-label={props.t('compare.title')}>
+        {series.map(item => <polyline key={item.row.id} points={toPolyline(item.values)} fill="none"
+          stroke={item.color} strokeWidth="1.5" vectorEffect="non-scaling-stroke" />)}
+      </svg>
+      <p className="paper-trading-note">{props.t('compare.hint')}</p>
+    </section>
+    <div className="paper-trading-table-wrap">
+      <table className="paper-trading-table">
+        <thead><tr>
+          <th>{props.t('compare.account')}</th><th className="is-num">{props.t('compare.equity')}</th>
+          <th className="is-num">{props.t('compare.pnl')}</th><th className="is-num">{props.t('compare.drawdown')}</th>
+          <th className="is-num">{props.t('compare.trades')}</th><th>{props.t('compare.state')}</th>
+        </tr></thead>
+        <tbody>{rows.map(row => <tr key={row.id}>
+          <td><strong>{row.name}</strong> <span className="paper-trading-mono paper-trading-note">{row.id}</span></td>
+          <td className="is-num paper-trading-mono">{props.money(row.equity)}</td>
+          <td className={`is-num paper-trading-mono ${row.pnlPct >= 0 ? 'is-up' : 'is-down'}`}>
+            {props.n(row.pnlPct, { style: 'percent', minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </td>
+          <td className="is-num">{props.n(row.maxDrawdownPct / 100, { style: 'percent', minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+          <td className="is-num">{props.n(row.tradeCount)}</td>
+          <td>{row.missing === true ? props.t('compare.missing') : row.locked ? props.t('account.locked') : props.t('compare.normal')}</td>
+        </tr>)}</tbody>
+      </table>
+    </div>
+  </section>
+}
+
+/** 行情页：板块翻页、搜索、备选与「带进交易页」。 */
+function MarketTab(props: {
+  board: Board
+  snapshot: BoardSnapshot
+  t: MessageScope['t']
+  money: (value: number) => string
+  n: MessageScope['n']
+}) {
+  const { board, snapshot, t, money, n } = props
+  const [query, setQuery] = useState('')
+  const [shortlistOnly, setShortlistOnly] = useState(false)
+  useEffect(() => {
+    const timer = setTimeout(() => { void board.searchMarket(query) }, 250)
+    return () => clearTimeout(timer)
+  }, [query])
+  const list = snapshot.marketList
+  const quotes = shortlistOnly
+    ? (list?.quotes ?? []).filter(quote => snapshot.shortlist.includes(quote.symbol))
+    : (list?.quotes ?? [])
+  return <div className="paper-trading-market">
+    <div className="paper-trading-tabs" role="group" aria-label={t('market.boards')}>
+      {BOARDS.map(item => <Button key={item.value} size="xs"
+        variant={snapshot.marketBoard === item.value ? 'secondary' : 'ghost'}
+        onClick={() => void board.loadMarket(item.value, 1)}>{t(item.label)}</Button>)}
+      <Button size="xs" variant={shortlistOnly ? 'secondary' : 'ghost'}
+        onClick={() => setShortlistOnly(value => !value)}>{t('market.shortlistOnly')}</Button>
+    </div>
+    <div className="paper-trading-market-search">
+      <Input value={query} placeholder={t('market.searchPlaceholder')} aria-label={t('market.searchPlaceholder')}
+        onChange={event => setQuery(event.target.value)} />
+      {snapshot.marketHits.length > 0 && <div className="paper-trading-hits">
+        {snapshot.marketHits.map(hit => <button key={hit.symbol} type="button" className="paper-trading-hit"
+          onClick={() => { setQuery(''); void board.adoptSymbol(hit.symbol) }}>
+          <span className="paper-trading-mono">{hit.symbol}</span>{hit.name}
+        </button>)}
+      </div>}
+    </div>
+    {list?.notice !== undefined && <p className="paper-trading-note">{list.notice}</p>}
+    {snapshot.marketBusy
+      ? <div className="paper-trading-empty">{t('loading')}</div>
+      : quotes.length === 0
+        ? <div className="paper-trading-empty">{t('market.empty')}</div>
+        : <div className="paper-trading-table-wrap">
+          <table className="paper-trading-table">
+            <thead><tr>
+              <th>{t('market.symbol')}</th><th className="is-num">{t('market.last')}</th>
+              <th className="is-num">{t('market.change')}</th><th className="is-num">{t('market.prevClose')}</th>
+              <th>{t('market.favorite')}</th>
+            </tr></thead>
+            <tbody>{quotes.map(quote => {
+              const previous = quote.prevClose ?? quote.last
+              const change = previous > 0 ? ((quote.last - previous) / previous) * 100 : 0
+              const favorited = snapshot.shortlist.includes(quote.symbol)
+              return <tr key={quote.symbol}>
+                <td><button type="button" className="paper-trading-link"
+                  onClick={() => void board.adoptSymbol(quote.symbol)}>
+                  <span className="paper-trading-mono">{quote.symbol}</span> {quote.name}
+                </button></td>
+                <td className="is-num paper-trading-mono">{money(quote.last)}</td>
+                <td className={`is-num paper-trading-mono ${change >= 0 ? 'is-up' : 'is-down'}`}>
+                  {n(change / 100, { style: 'percent', minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </td>
+                <td className="is-num paper-trading-mono">{money(previous)}</td>
+                <td><Button variant="ghost" size="icon-2xs" aria-label={t(favorited ? 'market.unfavorite' : 'market.favorite')}
+                  onClick={() => void board.toggleShortlist(quote.symbol)}>
+                  {favorited ? <IconStarFilled className="paper-trading-icon" /> : <IconStar className="paper-trading-icon" />}
+                </Button></td>
+              </tr>
+            })}</tbody>
+          </table>
+        </div>}
+    <div className="paper-trading-pager">
+      <Button size="xs" variant="outline" disabled={snapshot.marketBusy || snapshot.marketPage <= 1}
+        onClick={() => void board.loadMarket(snapshot.marketBoard, snapshot.marketPage - 1)}>{t('market.prev')}</Button>
+      <span className="paper-trading-note">{t('market.page', { page: snapshot.marketPage })}</span>
+      <Button size="xs" variant="outline" disabled={snapshot.marketBusy || (list?.quotes.length ?? 0) === 0}
+        onClick={() => void board.loadMarket(snapshot.marketBoard, snapshot.marketPage + 1)}>{t('market.next')}</Button>
+    </div>
+  </div>
 }
 
 function OrdersTable(props: {

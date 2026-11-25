@@ -8,17 +8,18 @@
  */
 
 export type {
-  AccountKind, AccountMeta, AccountsView, AccountView, Bar, CashFlowEntry, DataProblem,
-  DataSourceStatus, ErrorCode, FillView, LedgerExport, LedgerSnapshotView, LedgerSnapshotsView,
-  MarketStatus, OrderDraft, OrderType, OrderView, Period, PositionView, PreviewView, Quote,
-  ReviewView, SessionPhase, Side,
+  AccountKind, AccountMeta, AccountsView, AccountView, Bar, CashFlowEntry, CompareRow, CompareView,
+  DataProblem, DataState, DataSourceStatus, DayReport, ErrorCode, FillView, LedgerExport,
+  LedgerSnapshotView, LedgerSnapshotsView, MarketListResult, MarketStatus, OrderDraft, OrderType,
+  OrderView, Period, PositionView, PreviewView, Quote, ReviewView, RoundTrip, SessionPhase, ShortlistView,
+  Side, SymbolHit,
 } from './contract.ts'
 
 /** 复盘区间：与共享层 `Period` 同义。 */
 export type { Period as ReviewPeriod } from './contract.ts'
 
 /** 页面标签。 */
-export type TabKey = 'trade' | 'positions' | 'orders' | 'review'
+export type TabKey = 'trade' | 'positions' | 'orders' | 'review' | 'compare' | 'market'
 
 /** 平台自己的数据源状态：`live` 已拿到 FTShare 令牌；`stub` 还没连接。 */
 export interface DataSourceView {
