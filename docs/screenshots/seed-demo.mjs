@@ -20,6 +20,8 @@ const walkthrough = walkthroughArg >= 0 ? args[walkthroughArg + 1] : join(homedi
 const pluginData = join(walkthrough, 'host/plugin-data/%40dsh-ft%2Fftai-paper-trading/paper-trading')
 const restoreArg = args.indexOf('--restore')
 const apply = args.includes('--apply')
+// 外层脚本自己做了整目录备份时用 --no-backup，避免重复备份。
+const noBackup = args.includes('--no-backup')
 
 function money(value) {
   return Math.round(value * 100)
@@ -258,10 +260,12 @@ if (!apply) {
 }
 
 if (!existsSync(pluginData)) throw new Error(`找不到走查账本目录：${pluginData}`)
-const stamp = new Date().toISOString().replace(/[:.]/g, '-')
-const backup = `${pluginData}.bak-${stamp}`
-cpSync(pluginData, backup, { recursive: true })
-console.log(`已备份：${backup}`)
+if (!noBackup) {
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-')
+  const backup = `${pluginData}.bak-${stamp}`
+  cpSync(pluginData, backup, { recursive: true })
+  console.log(`已备份：${backup}`)
+}
 
 rmSync(join(pluginData, 'growth'), { recursive: true, force: true })
 writeJsonl(join(pluginData, 'default/events.jsonl'), stockLedger({ accountId: 'default', initialCash: 1_000_000, days }).events)
@@ -277,4 +281,4 @@ registry.accounts = [
   ...(futures === undefined ? [] : [futures]),
 ]
 writeFileSync(accountsPath, JSON.stringify(registry, null, 2))
-console.log('演示账本已写入；截完执行 --restore 还原。')
+console.log(noBackup ? '演示账本已写入（未备份，由外层脚本还原）。' : '演示账本已写入；截完执行 --restore 还原。')

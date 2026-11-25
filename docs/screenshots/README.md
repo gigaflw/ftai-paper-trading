@@ -10,8 +10,17 @@
 
 当前状态：下一版（0.7.0）开发中，FtAi Desktop 0.14.14，2026-11-25。
 
-演示数据用 `node docs/screenshots/seed-demo.mjs --apply` 生成（会自动备份原走查账本），截完
-`--restore <备份目录>` 还原。截图窗口视口 1600×1180、2x，缩到 1600 宽。
+一条命令重拍：
+
+```bash
+pnpm shots
+```
+
+它做：停走查实例 → 构建并热替换 → 备份账本 → `seed-demo.mjs --apply --no-backup` → 启动 →
+`capture.mjs` 截图 → 还原账本 → 退出。视口 1600×1180、2x，截图后缩到 1600 宽。
+
+行情不可用时 `capture.mjs` 会跳过依赖报价的 `trade.png` 与 `futures-trade.png`，只更新对比与
+期货持仓，并在输出里说明；等交易时段或配额恢复后再跑一次即可。
 
 README 里用的是仓库绝对地址（`raw.githubusercontent.com` 的 `main` 分支），不是相对路径：npm 包页与
 插件详情页对相对路径的处理不一致，绝对 https 两边都能显示。
