@@ -2,8 +2,8 @@
 /**
  * 模拟交易面板 e2e（真实应用 + 真实账本）：参考 dsh 版 `tests/e2e` 的 CDP 走查脚本改写。
  *
- * 用例覆盖 dsh 面板的 9 步走查里能在本地面板完成的部分：布局、默认标的、查询报价、
- * 预览/下单、持仓/订单/复盘切换、非法代码提示、K 线栏拖动与折叠。
+ * 用例覆盖 dsh 面板的走查里能在本地面板完成的部分：布局、默认标的与自动取价、自动试算、
+ * 下单/持仓/订单/复盘、非法代码提示、账户/资金/账本对话框、K 线栏拖动与折叠。
  * 不覆盖需要控制行情/时钟的场景（那需要假后端，见 dsh 版做法），也不点会改账号的按钮。
  *
  * 用法（在仓库根目录）：
@@ -109,10 +109,9 @@ const steps = [
     },
   },
   {
-    name: '查询 000001 并校验报价显示',
+    name: '输入 000001 自动取行情并校验报价显示',
     async run() {
       await input().fill('000001')
-      await page.getByRole('button', { name: '查询' }).click()
       await waitUntil(async () => (await quoteBox().innerText().catch(() => '')).includes('000001.SZ'), '000001 报价', 20_000)
       const text = await quoteBox().innerText()
       assert(!/000001\.SZ\s+000001\.SZ/.test(text), `报价重复显示代码：${text}`)
@@ -121,13 +120,15 @@ const steps = [
     },
   },
   {
-    name: '下单预览',
+    name: '自动试算：费用分项、可买与成交后可用',
     async run() {
-      await page.getByRole('button', { name: '预览', exact: true }).click()
-      await page.locator('.paper-trading-preview').waitFor({ state: 'visible' })
-      const text = await page.locator('.paper-trading-preview').innerText()
-      assert(text.includes('金额') && text.includes('费用'), `预览缺少金额/费用：${text}`)
-      assert(text.includes('成交后可用'), `预览缺少成交后可用：${text}`)
+      // 不再点「查询」「预览」：填完表单后 250ms 自动试算。
+      const preview = page.locator('.paper-trading-preview')
+      await preview.waitFor({ state: 'visible', timeout: 20_000 })
+      const text = await preview.innerText()
+      for (const expected of ['佣金', '印花税', '过户费', '费用合计', '成交后可用', '最多可买']) {
+        assert(text.includes(expected), `预览缺少「${expected}」：${text}`)
+      }
       await shot(page, outDir, '05-preview')
     },
   },
@@ -165,13 +166,37 @@ const steps = [
   {
     name: '非法代码提示',
     async run() {
-      await input().fill('abc')
-      await page.getByRole('button', { name: '查询' }).click()
+      await input().fill('123456')
       await waitUntil(async () => (await page.locator('.paper-trading-error').innerText().catch(() => '')).includes('代码格式'), '非法代码提示', 10_000)
       await shot(page, outDir, '08-invalid')
       await input().fill('600519')
-      await page.getByRole('button', { name: '查询' }).click()
       await waitUntil(async () => (await quoteBox().innerText().catch(() => '')).includes('600519.SH'), '恢复 600519 报价', 20_000)
+    },
+  },
+  {
+    name: '账户 / 资金 / 账本对话框',
+    async run() {
+      await page.getByRole('button', { name: '账户', exact: true }).click()
+      await page.getByRole('dialog').waitFor({ state: 'visible' })
+      const accounts = await page.getByRole('dialog').innerText()
+      assert(accounts.includes('账户管理'), `账户对话框缺少标题：${accounts.slice(0, 120)}`)
+      assert(accounts.includes('默认账户'), '账户对话框没有列出默认账户')
+      await shot(page, outDir, '09-accounts')
+      await page.getByRole('button', { name: '关闭', exact: true }).click()
+
+      await page.getByRole('button', { name: '资金', exact: true }).click()
+      await page.getByRole('dialog').waitFor({ state: 'visible' })
+      assert((await page.getByRole('dialog').innerText()).includes('资金流水'), '资金对话框缺少流水区')
+      await shot(page, outDir, '09-cash')
+      await page.getByRole('button', { name: '关闭', exact: true }).click()
+
+      await page.getByRole('button', { name: '账本', exact: true }).click()
+      await page.getByRole('dialog').waitFor({ state: 'visible' })
+      const ledger = await page.getByRole('dialog').innerText()
+      assert(ledger.includes('可恢复快照'), '账本对话框缺少快照区')
+      assert(ledger.includes('重置账户'), '账本对话框缺少重置区')
+      await shot(page, outDir, '09-ledger')
+      await page.getByRole('button', { name: '关闭', exact: true }).click()
     },
   },
   {
@@ -212,7 +237,7 @@ const steps = [
       await page.waitForTimeout(400)
       const expanded = await rail().boundingBox()
       assert(expanded !== null && expanded.width >= 200, `展开后宽度不对：${expanded?.width}`)
-      await shot(page, outDir, '09-rail')
+      await shot(page, outDir, '10-rail')
     },
   },
 ]

@@ -8,9 +8,10 @@
  */
 
 export type {
-  AccountKind, AccountMeta, AccountsView, AccountView, Bar, DataProblem, DataSourceStatus,
-  FillView, MarketStatus, OrderDraft, OrderType, OrderView, Period, PositionView, PreviewView,
-  Quote, ReviewView, SessionPhase, Side,
+  AccountKind, AccountMeta, AccountsView, AccountView, Bar, CashFlowEntry, DataProblem,
+  DataSourceStatus, ErrorCode, FillView, LedgerExport, LedgerSnapshotView, LedgerSnapshotsView,
+  MarketStatus, OrderDraft, OrderType, OrderView, Period, PositionView, PreviewView, Quote,
+  ReviewView, SessionPhase, Side,
 } from './contract.ts'
 
 /** 复盘区间：与共享层 `Period` 同义。 */
