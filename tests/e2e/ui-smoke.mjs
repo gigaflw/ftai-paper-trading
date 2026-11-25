@@ -173,6 +173,31 @@ const steps = [
       await page.getByRole('tab', { name: '对比' }).click()
       await page.locator('.paper-trading-compare, .paper-trading-content .paper-trading-empty').first()
         .waitFor({ state: 'visible', timeout: 20_000 })
+      // 表格里的最大回撤应等于曲线自身算出来的回撤（防止百分比被多除/少除 100）。
+      if (await page.locator('.paper-trading-compare').count() === 1) {
+        const labels = await page.locator('.paper-trading-compare-y span').allInnerTexts()
+        const toFraction = text => Number(text.replace('%', '')) / 100
+        const maxNorm = toFraction(labels[0])
+        const minNorm = toFraction(labels[labels.length - 1])
+        const rows = page.locator('.paper-trading-compare tbody tr')
+        const lines = page.locator('.paper-trading-compare-plot svg polyline')
+        const count = Math.min(await rows.count(), await lines.count())
+        for (let index = 0; index < count; index += 1) {
+          const points = await lines.nth(index).getAttribute('points')
+          if (points === null) continue
+          const ys = points.trim().split(/\s+/).map(point => Number(point.split(',')[1]))
+          const values = ys.map(y => minNorm + ((208 - y) / 196) * (maxNorm - minNorm))
+          let peak = 0
+          let drawdown = 0
+          for (const value of values) {
+            peak = Math.max(peak, value)
+            if (peak > 0) drawdown = Math.max(drawdown, (peak - value) / peak)
+          }
+          const displayed = toFraction(await rows.nth(index).locator('td').nth(3).innerText())
+          assert(Math.abs(displayed - drawdown) <= 0.001,
+            `第 ${index + 1} 行最大回撤显示 ${(displayed * 100).toFixed(2)}%，曲线算出来 ${(drawdown * 100).toFixed(2)}%`)
+        }
+      }
       await shot(page, outDir, '07b-compare')
 
       await page.getByRole('tab', { name: '行情' }).click()
@@ -227,6 +252,23 @@ const steps = [
       await page.locator('.paper-trading-futures').waitFor({ state: 'visible' })
       // 首次进入要等期货账本建好，交易表单才渲染。
       await page.locator('#futures-symbol').waitFor({ state: 'visible', timeout: 30_000 })
+      // 试算里的「结算后权益」与「成交后可用」应同一量级；出现 100 倍单位错误时能立刻抓到。
+      await page.locator('#futures-symbol').fill('rb')
+      await page.locator('.paper-trading-futures .paper-trading-hit').first().waitFor({ state: 'visible', timeout: 20_000 })
+      await page.locator('.paper-trading-futures .paper-trading-hit').first().click()
+      await page.locator('#futures-qty').fill('2')
+      const futuresPreview = page.locator('.paper-trading-futures .paper-trading-preview')
+      await futuresPreview.waitFor({ state: 'visible', timeout: 20_000 })
+      const previewValues = await futuresPreview.evaluate(element => Object.fromEntries(
+        [...element.querySelectorAll(':scope > div')].map(row => {
+          const parts = [...row.querySelectorAll('span,strong')]
+          return [parts[0]?.textContent?.trim() ?? '', parts[1]?.textContent?.trim() ?? '']
+        })))
+      const amount = text => Number((text ?? '').replace(/[^\d.]/g, ''))
+      const cashAfter = amount(previewValues['成交后可用'])
+      const equityAfter = amount(previewValues['结算后权益'])
+      assert(cashAfter > 0 && equityAfter >= cashAfter * 0.5 && equityAfter <= cashAfter * 2,
+        `期货试算权益量级不对：成交后可用 ${cashAfter}，结算后权益 ${equityAfter}`)
       const cards = page.locator('.paper-trading-futures .paper-trading-stat')
       assert(await cards.count() === 5, `期货统计卡应有 5 张，实际 ${await cards.count()}`)
       const tabs = await page.getByRole('tab').allInnerTexts()
