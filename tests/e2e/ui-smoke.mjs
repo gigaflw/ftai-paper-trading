@@ -27,6 +27,10 @@ const outDir = arg('out', join(repoRoot, '.artifacts', 'e2e', stamp))
 mkdirSync(outDir, { recursive: true })
 
 const { browser, page } = await connectApp(port)
+// 上一次运行可能停在崩溃/对话框残留的页面，先刷新到侧栏首页再开始。
+await page.reload()
+await page.locator('body').waitFor({ state: 'visible' })
+await page.waitForTimeout(1500)
 const context = { page, outDir }
 const pageErrors = []
 page.on('pageerror', error => pageErrors.push(String(error)))

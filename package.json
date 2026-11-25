@@ -41,7 +41,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.json && ftai-plugin-remote && tsc -p tsconfig.client.json && vite build",
     "test:ui": "node tests/e2e/ui-smoke.mjs",
-    "prepack": "rm -rf lib && pnpm run build"
+    "prepack": "rm -rf lib && pnpm run build",
+    "e2e:local": "bash tests/e2e/run-local.sh"
   },
   "devDependencies": {
     "@ftai/plugin-sdk": "^2.5.0",

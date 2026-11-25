@@ -3,36 +3,44 @@
 参考 dsh 版插件 `tests/e2e` 的 CDP 走查脚本改写：连已带调试口启动的 FtAi Desktop，操作真实界面并对
 DOM 断言。数据是走查目录里的真实本地账本；行情来自 FTShare，需要已登录并授权。
 
-## 前置
+## 最快路径
 
-1. 应用带调试口、隔离数据目录启动，并指向本机插件源（否则装不到本机包）：
-
-   ```bash
-   "/Applications/FtAi Desktop.app/Contents/Resources/binaries/ftai-rust-host" --stop
-   FTAI_PLUGIN_REGISTRY=http://127.0.0.1:4873 \
-   FTAI_HOST_HOME=$HOME/ftai-walkthrough/paper-trading/host \
-   FTAI_DEV_FILE_CREDENTIALS=1 \
-     "/Applications/FtAi Desktop.app/Contents/MacOS/FtAi Desktop" \
-     --user-data-dir=$HOME/ftai-walkthrough/paper-trading/userData \
-     --remote-debugging-port=0
-   ```
-
-2. 应用里登录账号，并安装/升级 `@clrstn2830h/plugin-paper-trading`；首次打开面板时授权 FTShare 数据。
-3. 跑测试时不要同时操作这个窗口（脚本会切标签、下单到走查账本）。
-
-## 运行
-
-在本插件目录（`@playwright/test` 是插件自己的 devDependency）：
+应用已登录、已安装过本插件（并授权过 FTShare）之后，在插件目录：
 
 ```bash
-node tests/e2e/ui-smoke.mjs \
-  --walkthrough ~/ftai-walkthrough/paper-trading
+pnpm e2e:local
 ```
 
-- 端口默认从 `<walkthrough>/userData/DevToolsActivePort` 读，也可以用 `--port`。
-- 截图与失败现场写到插件仓的 `.artifacts/e2e/<时间戳>/`（已 gitignore），可用 `--out` 覆盖；
-  提交文档图时再手工挑图放进 `docs/screenshots/`。
-- 退出码 0 表示全部通过；失败步骤会打印第一处不满足的文本。
+脚本会：停掉走查实例的宿主与应用 → `pnpm build` → 把本次构建**热替换**进走查实例里已安装的包
+（并把客户端注册 id 改回安装包名，仅测试用）→ 启动应用 → 跑 `ui-smoke` → 退出。
+
+- `--keep`：跑完不退出，方便看失败现场；
+- `--restore`：跑完把走查实例原来的 `lib/` 还原（默认保留本次构建）；
+- `--walkthrough DIR` 或 `FTAI_WALKTHROUGH`：覆盖走查目录；
+- 其余参数原样传给 `ui-smoke`（如 `--out`）。
+
+日志在 `dsh_tmp/e2e-app.log`，失败截图在 `.artifacts/e2e/<时间戳>/`。
+
+## 手动跑
+
+不走脚本时，等价步骤：
+
+```bash
+"/Applications/FtAi Desktop.app/Contents/Resources/binaries/ftai-rust-host" --stop
+FTAI_HOST_HOME=$HOME/ftai-walkthrough/paper-trading/host FTAI_DEV_FILE_CREDENTIALS=1 \
+  env -u ELECTRON_RUN_AS_NODE \
+  "/Applications/FtAi Desktop.app/Contents/MacOS/FtAi Desktop" \
+    --user-data-dir=$HOME/ftai-walkthrough/paper-trading/userData --remote-debugging-port=0
+node tests/e2e/ui-smoke.mjs --walkthrough ~/ftai-walkthrough/paper-trading
+```
+
+应用里要装好本插件并授权 FTShare；测试会往走查账本里真实下单，不要同时操作这个窗口。
+
+**本机坑位**（脚本已处理，手动跑时注意）：
+
+- 会话环境若带 `ELECTRON_RUN_AS_NODE=1`，Electron 会当 Node 跑，启动报 `bad option: --user-data-dir`；启动前必须 `env -u ELECTRON_RUN_AS_NODE`。
+- 不再是发版安装时，走查实例里装的可能是旧包名；热替换后要把 `lib/client.js` 里的注册 id 改成安装包名，否则报 `did not register`。
+- 上一次崩溃/对话框残留会污染下一次运行；`ui-smoke` 启动后先 reload，脚本启动前也会清 `DevToolsActivePort`。
 
 ## 覆盖范围
 
