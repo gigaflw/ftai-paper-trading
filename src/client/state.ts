@@ -8,12 +8,13 @@
  */
 
 import type {
-  AccountView, AccountsView, Bar, CashFlowEntry, CompareView, DataSourceView, DayReport, FillView,
+  AccountView, AccountsView, Bar, BasketOrderResult, BasketPreview, CashFlowEntry, CompareView,
+  DataSourceView, DayReport, FillView,
   FuturesAccountView, FuturesCashFlowEntry, FuturesContractView, FuturesContractsResult, FuturesDraft,
   FuturesFillView, FuturesLedgerExport, FuturesMarketStatus, FuturesOrderView, FuturesPositionView,
   FuturesPreviewView, FuturesQuoteView, FuturesReviewView, FuturesTabKey, LedgerExport,
-  LedgerSnapshotsView, MarketListResult, MarketStatus, OrderDraft, OrderView, Period, PreviewView,
-  Quote, ReviewView, RoundTrip, SymbolHit, TabKey,
+  LedgerSnapshotsView, MarketListResult, MarketStatus, NoteView, OrderDraft, OrderView, Period,
+  PreviewView, Quote, ReviewView, RoundTrip, SymbolHit, TabKey,
 } from '@clrstn2830h/plugin-paper-trading/types'
 
 /** remote 调用的结果信封（与 `@ftai/plugin-sdk/remote` 的 `RemoteResult` 同形）。 */
@@ -93,6 +94,13 @@ export interface BoardSnapshot {
   marketHits: SymbolHit[]
   /** 备选（自选）标的（`shortlist/*`）。 */
   shortlist: string[]
+  /** 批量按权重下单的试算（`basket/preview`）与提交结果（`basket/place`）。 */
+  basket: BasketPreview | null
+  basketBusy: boolean
+  basketResult: BasketOrderResult | null
+  /** 当前账户的笔记（`note/*`）。 */
+  note: NoteView | null
+  noteBusy: boolean
   dataSource: DataSourceView | null
   /** 最近一次成功的委托（用于下单回执，不参与业务状态）。 */
   lastOrder: OrderView | null
@@ -151,7 +159,8 @@ export function createBoard() {
     preview: null, previewBusy: false,
     review: null, reviewDaily: null, roundTrips: null, compare: null,
     marketList: null, marketBusy: false, marketBoard: 'main', marketPage: 1, marketHits: [],
-    shortlist: [], dataSource: null, lastOrder: null, bars: [], barsLoading: false,
+    shortlist: [], basket: null, basketBusy: false, basketResult: null, note: null, noteBusy: false,
+    dataSource: null, lastOrder: null, bars: [], barsLoading: false,
     status: null, trades: [], cashFlow: [], ledger: null, ledgerExport: null,
   }
   let alive = true
@@ -171,6 +180,8 @@ export function createBoard() {
   let futuresPreviewGeneration = 0
   let futuresReviewGeneration = 0
   let futuresContractGeneration = 0
+  let basketGeneration = 0
+  let noteGeneration = 0
 
   const publish = (patch: Partial<BoardSnapshot>) => {
     if (!alive) return
@@ -280,7 +291,7 @@ export function createBoard() {
     if (!alive || scope === undefined || accountId === snapshot.accountId) return
     const token = ++generation
     previewGeneration += 1
-    publish({ accountId, busy: 'board', errorCode: '', errorMessage: '', preview: null, review: null, reviewDaily: null, roundTrips: null, lastOrder: null })
+    publish({ accountId, busy: 'board', errorCode: '', errorMessage: '', preview: null, review: null, reviewDaily: null, roundTrips: null, lastOrder: null, basket: null, basketResult: null, note: null })
     try {
       const bundle = await accountBundle(scope, accountId)
       if (token !== generation) return
@@ -935,6 +946,89 @@ export function createBoard() {
     if (tab === 'review' && snapshot.futures.review === null) void loadFuturesReview(snapshot.futures.period)
   }
 
+
+  /** 批量试算：只读，返回每只股票的权重、股数、费用与现金。 */
+  async function previewBasket(csv: string, budgetYuan: number): Promise<string> {
+    const scope = owner
+    if (!alive || scope === undefined) return 'paper-trading/unavailable'
+    const token = ++basketGeneration
+    publish({ basketBusy: true, errorCode: '', errorMessage: '', basketResult: null })
+    try {
+      const basket = await unwrap(scope, scope.port.rpc('basket/preview', {
+        csv,
+        budgetCents: Math.round(budgetYuan * 100),
+      }, snapshot.accountId)) as BasketPreview
+      if (token !== basketGeneration) return ''
+      publish({ basketBusy: false, basket })
+      return ''
+    } catch (error) {
+      if (token !== basketGeneration) return ''
+      const patch = fail(error)
+      publish({ basketBusy: false, basket: null, ...patch })
+      return patch.errorCode
+    }
+  }
+
+  /** 按试算结果整批提交；成功后重读账户、委托与成交。 */
+  async function placeBasket(batchId: string): Promise<string> {
+    const scope = owner
+    if (!alive || scope === undefined) return 'paper-trading/unavailable'
+    const preview = snapshot.basket
+    if (preview === null) return 'INVALID_ARGUMENT'
+    const rows = preview.rows.filter(row => row.status === 'ok' && row.qty > 0)
+      .map(row => ({ symbol: row.symbol, qty: row.qty }))
+    if (rows.length === 0) return 'INVALID_ARGUMENT'
+    const token = ++generation
+    publish({ basketBusy: true, errorCode: '', errorMessage: '' })
+    try {
+      const basketResult = await unwrap(scope, scope.port.rpc('basket/place', { rows, batchId }, snapshot.accountId)) as BasketOrderResult
+      const bundle = await accountBundle(scope, snapshot.accountId)
+      if (token !== generation) return ''
+      publish({ basketBusy: false, basketResult, ...bundle })
+      return ''
+    } catch (error) {
+      if (token !== generation) return ''
+      const patch = fail(error)
+      publish({ basketBusy: false, ...patch })
+      return patch.errorCode
+    }
+  }
+
+  /** 读当前账户笔记；每次进入笔记页都读一次，避免多标签页覆盖。 */
+  async function loadNote(): Promise<void> {
+    const scope = owner
+    if (!alive || scope === undefined) return
+    const token = ++noteGeneration
+    publish({ noteBusy: true })
+    try {
+      const note = await unwrap(scope, scope.port.rpc('note/get', {}, snapshot.accountId)) as NoteView
+      if (token !== noteGeneration) return
+      publish({ noteBusy: false, note })
+    } catch {
+      if (token !== noteGeneration) return
+      publish({ noteBusy: false })
+    }
+  }
+
+  /** 保存笔记（纯文本，模型读不到）。返回空串表示成功。 */
+  async function saveNote(text: string): Promise<string> {
+    const scope = owner
+    if (!alive || scope === undefined) return 'paper-trading/unavailable'
+    const token = ++noteGeneration
+    publish({ noteBusy: true })
+    try {
+      const note = await unwrap(scope, scope.port.rpc('note/set', { text }, snapshot.accountId)) as NoteView
+      if (token !== noteGeneration) return ''
+      publish({ noteBusy: false, note })
+      return ''
+    } catch (error) {
+      if (token !== noteGeneration) return ''
+      const patch = fail(error)
+      publish({ noteBusy: false, ...patch })
+      return patch.errorCode
+    }
+  }
+
   return {
     getSnapshot: () => snapshot,
     subscribe(listener: () => void) {
@@ -977,6 +1071,7 @@ export function createBoard() {
       publish({ tab })
       if (tab === 'review' && snapshot.review === null) void loadReview()
       if (tab === 'compare' && snapshot.compare === null) void loadCompare()
+      if (tab === 'notes') void loadNote()
       if (tab === 'market') {
         void loadShortlist()
         void loadMarket()
@@ -1002,6 +1097,10 @@ export function createBoard() {
     loadShortlist,
     toggleShortlist,
     adoptSymbol,
+    previewBasket,
+    placeBasket,
+    loadNote,
+    saveNote,
     deposit: (amount: number) => moveCash('deposit', amount),
     withdraw: (amount: number) => moveCash('withdraw', amount),
     loadLedger,

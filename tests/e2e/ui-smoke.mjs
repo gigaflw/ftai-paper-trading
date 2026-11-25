@@ -199,13 +199,13 @@ const steps = [
       assert(accounts.includes('账户管理'), `账户对话框缺少标题：${accounts.slice(0, 120)}`)
       assert(accounts.includes('默认账户'), '账户对话框没有列出默认账户')
       await shot(page, outDir, '09-accounts')
-      await page.getByRole('button', { name: '关闭', exact: true }).click()
+      await page.getByRole('dialog').getByRole('button', { name: '关闭', exact: true }).last().click()
 
       await page.getByRole('button', { name: '资金', exact: true }).click()
       await page.getByRole('dialog').waitFor({ state: 'visible' })
       assert((await page.getByRole('dialog').innerText()).includes('资金流水'), '资金对话框缺少流水区')
       await shot(page, outDir, '09-cash')
-      await page.getByRole('button', { name: '关闭', exact: true }).click()
+      await page.getByRole('dialog').getByRole('button', { name: '关闭', exact: true }).last().click()
 
       await page.getByRole('button', { name: '账本', exact: true }).click()
       await page.getByRole('dialog').waitFor({ state: 'visible' })
@@ -213,7 +213,7 @@ const steps = [
       assert(ledger.includes('可恢复快照'), '账本对话框缺少快照区')
       assert(ledger.includes('重置账户'), '账本对话框缺少重置区')
       await shot(page, outDir, '09-ledger')
-      await page.getByRole('button', { name: '关闭', exact: true }).click()
+      await page.getByRole('dialog').getByRole('button', { name: '关闭', exact: true }).last().click()
     },
   },
   {
@@ -221,16 +221,29 @@ const steps = [
     async run() {
       await page.getByRole('button', { name: '期货', exact: true }).click()
       await page.locator('.paper-trading-futures').waitFor({ state: 'visible' })
+      // 首次进入要等期货账本建好，交易表单才渲染。
+      await page.locator('#futures-symbol').waitFor({ state: 'visible', timeout: 30_000 })
       const cards = page.locator('.paper-trading-futures .paper-trading-stat')
       assert(await cards.count() === 5, `期货统计卡应有 5 张，实际 ${await cards.count()}`)
       const tabs = await page.getByRole('tab').allInnerTexts()
       for (const expected of ['交易', '持仓', '订单', '复盘']) {
         assert(tabs.some(text => text.trim() === expected), `期货标签缺少「${expected}」：${tabs.join('/')}`)
       }
-      assert(await page.locator('#futures-symbol').count() === 1, '期货交易页缺少合约输入')
       await shot(page, outDir, '11-futures')
       await page.getByRole('button', { name: '股票', exact: true }).click()
       await page.locator('.paper-trading-body').waitFor({ state: 'visible' })
+    },
+  },
+  {
+    name: '批量 / 笔记标签',
+    async run() {
+      await page.getByRole('tab', { name: '批量' }).click()
+      await page.locator('#basket-csv').waitFor({ state: 'visible' })
+      assert(await page.getByRole('button', { name: '试算', exact: true }).count() === 1, '批量页缺少试算按钮')
+      await page.getByRole('tab', { name: '笔记' }).click()
+      await page.locator('.paper-trading-notes textarea').waitFor({ state: 'visible' })
+      await shot(page, outDir, '07d-basket-notes')
+      await page.getByRole('tab', { name: '交易' }).click()
     },
   },
   {

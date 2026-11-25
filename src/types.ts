@@ -8,11 +8,12 @@
  */
 
 export type {
-  AccountKind, AccountMeta, AccountsView, AccountView, Bar, CashFlowEntry, CompareRow, CompareView,
+  AccountKind, AccountMeta, AccountsView, AccountView, Bar, BasketIssue, BasketOrderResult, BasketPlanRow,
+  BasketPreview, CashFlowEntry, CompareRow, CompareView,
   DataProblem, DataState, DataSourceStatus, DayReport, ErrorCode, FillView, LedgerExport,
-  LedgerSnapshotView, LedgerSnapshotsView, MarketListResult, MarketStatus, OrderDraft, OrderType,
-  OrderView, Period, PositionView, PreviewView, Quote, ReviewView, RoundTrip, SessionPhase, ShortlistView,
-  Side, SymbolHit,
+  LedgerSnapshotView, LedgerSnapshotsView, MarketListResult, MarketStatus, NoteView, OrderDraft,
+  OrderType, OrderView, Period, PositionView, PreviewView, Quote, ReviewView, RoundTrip, SessionPhase,
+  ShortlistView, Side, SymbolHit,
 } from './contract.ts'
 
 export type {
@@ -25,7 +26,7 @@ export type {
 export type { Period as ReviewPeriod } from './contract.ts'
 
 /** 页面标签。 */
-export type TabKey = 'trade' | 'positions' | 'orders' | 'review' | 'compare' | 'market'
+export type TabKey = 'trade' | 'basket' | 'market' | 'positions' | 'orders' | 'review' | 'compare' | 'notes'
 /** 期货页标签。 */
 export type FuturesTabKey = 'trade' | 'positions' | 'orders' | 'review'
 

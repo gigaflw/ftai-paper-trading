@@ -3,7 +3,7 @@ export default {
   feature: { title: 'Paper Trading' },
   subtitle: 'Local paper ledger · shared business layer from the dsh plugin',
   loading: 'Loading ledger…',
-  tabs: { label: 'Views', trade: 'Trade', positions: 'Positions', orders: 'Orders', review: 'Review', compare: 'Compare', market: 'Market' },
+  tabs: { label: 'Views', trade: 'Trade', positions: 'Positions', orders: 'Orders', review: 'Review', compare: 'Compare', market: 'Market', basket: 'Batch', notes: 'Notes' },
   board: { all: 'All', main: 'Main board', star: 'STAR', chiNext: 'ChiNext', bjse: 'BSE', xshg: 'Shanghai', xshe: 'Shenzhen' },
   mode: { label: 'Account type', stock: 'Stocks', futures: 'Futures' },
   account: {
@@ -113,6 +113,19 @@ export default {
     empty: 'No quotes; connect FTShare data and retry', symbol: 'Symbol', last: 'Last',
     change: 'Change', prevClose: 'Prev close', favorite: 'Watchlist', unfavorite: 'Remove from watchlist',
     prev: 'Previous', next: 'Next', page: 'Page {page}',
+  },
+  basket: {
+    csv: 'CSV (code,weight)', csvHint: 'One row per symbol: code,weight. Write 0.3 or 30%; weights are normalised in the file.',
+    budget: 'Budget (CNY)', preview: 'Preview', place: 'Place batch',
+    rule: 'Up to 20 symbols; each allotment is floored to 100-share lots. Preview before placing.',
+    weight: 'Weight', planQty: 'Planned qty', amount: 'Amount', fees: 'Fees', status: 'Status',
+    rowStatus: { ok: 'Buyable', zero_lot: 'Below one lot', no_quote: 'No quote', suspended: 'Suspended' },
+    issueLine: 'Line {line}:', result: 'Batch result', cashAfter: 'Cash after placing',
+  },
+  notes: {
+    title: 'Notes', placeholder: 'Write something only you can read…',
+    hint: 'Auto-saved next to the local ledger; the model has no read or write access.',
+    saving: 'Saving…', saved: 'Saved', saveFailed: 'Save failed',
   },
   futures: {
     tabs: { trade: 'Trade', positions: 'Positions', orders: 'Orders', review: 'Review' },

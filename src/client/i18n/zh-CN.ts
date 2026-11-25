@@ -3,7 +3,7 @@ export default {
   feature: { title: '模拟交易' },
   subtitle: '本地模拟盘 · 账本来自 dsh 版插件共享层',
   loading: '正在读取账本…',
-  tabs: { label: '视图', trade: '交易', positions: '持仓', orders: '订单', review: '复盘', compare: '对比', market: '行情' },
+  tabs: { label: '视图', trade: '交易', positions: '持仓', orders: '订单', review: '复盘', compare: '对比', market: '行情', basket: '批量', notes: '笔记' },
   board: { all: '全部', main: '主板', star: '科创板', chiNext: '创业板', bjse: '北交所', xshg: '沪市', xshe: '深市' },
   mode: { label: '账户类型', stock: '股票', futures: '期货' },
   account: {
@@ -113,6 +113,19 @@ export default {
     empty: '没有行情；连接 FTShare 数据后重试', symbol: '标的', last: '现价',
     change: '涨跌幅', prevClose: '昨收', favorite: '备选', unfavorite: '移出备选',
     prev: '上一页', next: '下一页', page: '第 {page} 页',
+  },
+  basket: {
+    csv: 'CSV（代码,权重）', csvHint: '每行一只：代码,权重。权重写 0.3 或 30%，文件内会归一化。',
+    budget: '预算（元）', preview: '试算', place: '整批提交',
+    rule: '最多 20 只；每只按 100 股整手向下取整，先试算再提交。',
+    weight: '权重', planQty: '计划股数', amount: '金额', fees: '费用', status: '状态',
+    rowStatus: { ok: '可买', zero_lot: '不足一手', no_quote: '无行情', suspended: '停牌' },
+    issueLine: '第 {line} 行：', result: '提交结果', cashAfter: '提交后可用现金',
+  },
+  notes: {
+    title: '笔记', placeholder: '写点只有自己看得到的东西…',
+    hint: '自动保存到本机账本目录；模型没有读写入口。',
+    saving: '保存中…', saved: '已保存', saveFailed: '保存失败',
   },
   futures: {
     tabs: { trade: '交易', positions: '持仓', orders: '订单', review: '复盘' },

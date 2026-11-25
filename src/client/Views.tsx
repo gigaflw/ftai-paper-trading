@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import {
   Button, Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, Input, SettingsGroup,
-  SettingsPage, SettingsRow, StockChart, useMessages, useShellNotice, type AppPreferences,
+  SettingsPage, SettingsRow, StockChart, Textarea, useMessages, useShellNotice, type AppPreferences,
 } from '@ftai/plugin-sdk/app'
 import type { StockChartCandle, StockChartSeries } from '@ftai/plugin-sdk/app'
 import Decimal from 'decimal.js'
@@ -11,7 +11,7 @@ import {
   IconStar, IconStarFilled, IconWallet,
 } from '@tabler/icons-react'
 import type {
-  Bar, CashFlowEntry, CompareRow, DataSourceView, DayReport, FillView, FuturesAccountView,
+  Bar, BasketOrderResult, BasketPreview, CashFlowEntry, CompareRow, DataSourceView, DayReport, FillView, FuturesAccountView,
   FuturesCashFlowEntry, FuturesContractView, FuturesDraft, FuturesFillView, FuturesMarketStatus,
   FuturesOrderView, FuturesPositionView, FuturesPreviewView, FuturesQuoteView, FuturesReviewView,
   FuturesSide, FuturesOffset, FuturesOrderType, FuturesTabKey, MarketStatus, OrderDraft, OrderView,
@@ -19,7 +19,7 @@ import type {
 } from '@clrstn2830h/plugin-paper-trading/types'
 import { canonicalId, type Board, type BoardSnapshot } from './state.ts'
 
-const TABS: readonly TabKey[] = ['trade', 'positions', 'orders', 'review', 'compare', 'market']
+const TABS: readonly TabKey[] = ['trade', 'basket', 'market', 'positions', 'orders', 'review', 'compare', 'notes']
 const BOARDS: readonly { value: string; label: string }[] = [
   { value: 'main', label: 'board.main' }, { value: 'all', label: 'board.all' },
   { value: 'star', label: 'board.star' }, { value: 'chi_next', label: 'board.chiNext' },
@@ -330,6 +330,10 @@ export function createViews(messages: MessageScope, board: Board, prefs?: AppPre
           return <CompareBlock view={snapshot.compare} money={money} t={t} n={n} loading={snapshot.busy === 'compare'} />
         case 'market':
           return <MarketTab board={board} snapshot={snapshot} t={t} money={money} n={n} />
+        case 'basket':
+          return <BasketTab board={board} snapshot={snapshot} t={t} money={money} n={n} text={code => errorText(t, code)} />
+        case 'notes':
+          return <NotesTab board={board} snapshot={snapshot} t={t} />
       }
     }
 
@@ -1050,26 +1054,43 @@ function CompareBlock(props: {
   const max = Math.max(100, ...all)
   const span = Math.max(1, max - min)
   const longest = Math.max(...series.map(item => item.values.length))
+  const chartTop = 12
+  const chartBottom = 208
+  const yFor = (value: number) => chartBottom - ((value - min) / span) * (chartBottom - chartTop)
   const toPolyline = (values: readonly number[]) => values.map((value, index) => {
     const x = values.length <= 1 ? 0 : (index / Math.max(1, longest - 1)) * 600
-    const y = 150 - ((value - min) / span) * 140
-    return `${x.toFixed(1)},${y.toFixed(1)}`
+    return `${x.toFixed(1)},${yFor(value).toFixed(1)}`
   }).join(' ')
+  const gridValues = [0, 1, 2, 3, 4].map(step => min + (span * step) / 4)
+  const dates = series.reduce<readonly { date: string }[]>(
+    (best, item) => item.row.points.length > best.length ? item.row.points : best, series[0]?.row.points ?? [])
+  const midDate = dates[Math.floor((dates.length - 1) / 2)]?.date ?? ''
+  const percent = (value: number) => props.n(value / 100, { style: 'percent', maximumFractionDigits: 1 })
   return <section className="paper-trading-compare">
     <div className="paper-trading-tabs" role="group" aria-label={props.t('compare.title')}>
       {series.map(item => <span key={item.row.id} className="paper-trading-legend">
         <i style={{ background: item.color }} />{item.row.name}
       </span>)}
     </div>
-    <section className="paper-trading-chart" aria-label={props.t('compare.title')}>
-      <div className="paper-trading-chart-scale"><span>{props.n(max / 100, { style: 'percent', maximumFractionDigits: 1 })}</span>
-        <span>{props.n(min / 100, { style: 'percent', maximumFractionDigits: 1 })}</span></div>
-      <svg viewBox="0 0 600 160" preserveAspectRatio="none" role="img" aria-label={props.t('compare.title')}>
-        {series.map(item => <polyline key={item.row.id} points={toPolyline(item.values)} fill="none"
-          stroke={item.color} strokeWidth="1.5" vectorEffect="non-scaling-stroke" />)}
-      </svg>
-      <p className="paper-trading-note">{props.t('compare.hint')}</p>
+    <section className="paper-trading-compare-chart" aria-label={props.t('compare.title')}>
+      <div className="paper-trading-compare-y" aria-hidden="true">
+        <span>{percent(max)}</span><span>{percent((max + min) / 2)}</span><span>{percent(min)}</span>
+      </div>
+      <div className="paper-trading-compare-plot">
+        <svg viewBox="0 0 600 220" preserveAspectRatio="none" role="img" aria-label={props.t('compare.title')}>
+          {gridValues.map((value, index) => <line key={`grid-${index}`} x1="0" x2="600"
+            y1={yFor(value)} y2={yFor(value)} stroke="var(--border)" strokeDasharray="2 4" />)}
+          <line x1="0" x2="600" y1={yFor(100)} y2={yFor(100)} stroke="var(--muted-foreground)"
+            strokeDasharray="5 4" opacity="0.55" />
+          {series.map(item => <polyline key={item.row.id} points={toPolyline(item.values)} fill="none"
+            stroke={item.color} strokeWidth="2" vectorEffect="non-scaling-stroke" />)}
+        </svg>
+        <div className="paper-trading-compare-x">
+          <span>{dates[0]?.date ?? ''}</span><span>{midDate}</span><span>{dates[dates.length - 1]?.date ?? ''}</span>
+        </div>
+      </div>
     </section>
+    <p className="paper-trading-note">{props.t('compare.hint')}</p>
     <div className="paper-trading-table-wrap">
       <table className="paper-trading-table">
         <thead><tr>
@@ -1083,7 +1104,7 @@ function CompareBlock(props: {
           <td className={`is-num paper-trading-mono ${row.pnlPct >= 0 ? 'is-up' : 'is-down'}`}>
             {props.n(row.pnlPct, { style: 'percent', minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </td>
-          <td className="is-num">{props.n(row.maxDrawdownPct / 100, { style: 'percent', minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+          <td className="is-num">{props.n(row.maxDrawdownPct, { style: 'percent', minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
           <td className="is-num">{props.n(row.tradeCount)}</td>
           <td>{row.missing === true ? props.t('compare.missing') : row.locked ? props.t('account.locked') : props.t('compare.normal')}</td>
         </tr>)}</tbody>
@@ -1437,7 +1458,7 @@ function FuturesPreviewBlock(props: {
     <div><span>{props.t('futures.preview.margin')}</span><strong className="paper-trading-mono">{props.money(preview.marginCents / 100)}</strong></div>
     <div><span>{props.t('futures.preview.fees')}</span><span className="paper-trading-mono">{props.money(preview.feesCents / 100)}</span></div>
     <div><span>{props.t('preview.cashAfter')}</span><span className="paper-trading-mono">{props.money(preview.cashAfterCents / 100)}</span></div>
-    <div><span>{props.t('futures.preview.equityAfter')}</span><span className="paper-trading-mono">{props.money(preview.equityAfter)}</span></div>
+    <div><span>{props.t('futures.preview.equityAfter')}</span><span className="paper-trading-mono">{props.money(preview.equityAfter / 100)}</span></div>
     <div><span>{props.t('futures.preview.riskAfter')}</span><span className="paper-trading-mono">
       {props.n(preview.riskRatioAfter, { style: 'percent', minimumFractionDigits: 1, maximumFractionDigits: 1 })}
     </span></div>
@@ -1597,7 +1618,7 @@ function FuturesReviewBlock(props: {
     <section className="paper-trading-stats">
       <Stat label={props.t('review.trades')} value={props.n(review.tradeCount)} />
       <Stat label={props.t('review.realizedPnl')} value={props.money(review.realizedPnl)} tone={review.realizedPnl} />
-      <Stat label={props.t('review.maxDrawdown')} value={props.n(review.maxDrawdownPct / 100, { style: 'percent', minimumFractionDigits: 2, maximumFractionDigits: 2 })} />
+      <Stat label={props.t('review.maxDrawdown')} value={props.n(review.maxDrawdownPct, { style: 'percent', minimumFractionDigits: 2, maximumFractionDigits: 2 })} />
       <Stat label={props.t('review.fees')} value={props.money(review.totalFees)} />
       <Stat label={props.t('futures.review.winLoss')} value={`${props.n(review.winCount)} / ${props.n(review.lossCount)}`} />
     </section>
@@ -1783,6 +1804,154 @@ function FuturesLedgerDialog(props: {
   </Dialog>
 }
 
+
+/** 批量按权重下单：CSV → 试算 → 整批提交。 */
+function BasketTab(props: {
+  board: Board
+  snapshot: BoardSnapshot
+  t: MessageScope['t']
+  money: (value: number) => string
+  n: MessageScope['n']
+  text: (code: string) => string
+}) {
+  const { board, snapshot, t, money, n } = props
+  const [csv, setCsv] = useState('')
+  const [budget, setBudget] = useState('100000')
+  const [error, setError] = useState('')
+  const preview = snapshot.basket
+  const result = snapshot.basketResult
+  const busy = snapshot.basketBusy
+
+  const run = async (pending: Promise<string>) => setError(await pending)
+
+  return <div className="paper-trading-basket">
+    <section className="paper-trading-basket-form">
+      <div className="paper-trading-field">
+        <label htmlFor="basket-csv">{t('basket.csv')}</label>
+        <Textarea id="basket-csv" value={csv} rows={6} placeholder={t('basket.csvHint')}
+          onChange={event => setCsv(event.target.value)} />
+      </div>
+      <div className="paper-trading-inline-form">
+        <Input value={budget} inputMode="decimal" aria-label={t('basket.budget')}
+          placeholder={t('basket.budget')} onChange={event => setBudget(event.target.value)} />
+        <Button size="sm" variant="outline" disabled={busy || csv.trim() === ''}
+          onClick={() => void run(board.previewBasket(csv, Number(budget)))}>{t('basket.preview')}</Button>
+        <Button size="sm" disabled={busy || preview === null || !preview.rows.some(row => row.status === 'ok' && row.qty > 0)}
+          onClick={() => void run(board.placeBasket(crypto.randomUUID()))}>{t('basket.place')}</Button>
+      </div>
+      {error !== '' && <p className="paper-trading-error-text" role="alert">{props.text(error)}</p>}
+      <p className="paper-trading-note">{t('basket.rule')}</p>
+    </section>
+    {preview !== null && <>
+      <section className="paper-trading-stats paper-trading-basket-totals">
+        <Stat label={t('basket.budget')} value={money(preview.budgetCents / 100)} />
+        <Stat label={t('basket.amount')} value={money(preview.totalAmountCents / 100)} />
+        <Stat label={t('basket.fees')} value={money(preview.totalFeesCents / 100)} />
+        <Stat label={t('basket.residual')} value={money(preview.residualCents / 100)} />
+        <Stat label={t('basket.cashAfter')} value={money(preview.cashAfterCents / 100)} />
+      </section>
+      {(preview.issues.length > 0 || preview.warnings.length > 0) && <div className="paper-trading-basket-notes">
+        {preview.issues.map((issue, index) => <p key={`issue-${index}`} className="paper-trading-error-text">
+          {t('basket.issueLine', { line: issue.line })} {issue.message}
+        </p>)}
+        {preview.warnings.map((warning, index) => <p key={`warning-${index}`} className="paper-trading-note">{warning}</p>)}
+      </div>}
+      <div className="paper-trading-table-wrap">
+        <table className="paper-trading-table">
+          <thead><tr>
+            <th>{t('positions.symbol')}</th>
+            <th className="is-num">{t('basket.weight')}</th>
+            <th className="is-num">{t('basket.planQty')}</th>
+            <th className="is-num">{t('basket.amount')}</th>
+            <th className="is-num">{t('basket.fees')}</th>
+            <th>{t('basket.status')}</th>
+          </tr></thead>
+          <tbody>{preview.rows.map(row => <tr key={row.symbol}>
+            <td><span className="paper-trading-mono">{row.symbol}</span> {row.name}</td>
+            <td className="is-num">{n(row.weight, { style: 'percent', minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+            <td className="is-num">{n(row.qty)}</td>
+            <td className="is-num paper-trading-mono">{money(row.amountCents / 100)}</td>
+            <td className="is-num paper-trading-mono">{money(row.feesCents / 100)}</td>
+            <td>{t(`basket.rowStatus.${row.status}`)}{row.warning === undefined ? '' : ` · ${row.warning}`}</td>
+          </tr>)}</tbody>
+        </table>
+      </div>
+    </>}
+    {result !== null && <section className="paper-trading-review-section">
+      <h4 className="paper-trading-dialog-subtitle">{t('basket.result')}</h4>
+      <div className="paper-trading-table-wrap">
+        <table className="paper-trading-table">
+          <thead><tr>
+            <th>{t('positions.symbol')}</th><th>{t('orders.status')}</th><th />
+          </tr></thead>
+          <tbody>{result.rows.map(row => <tr key={row.symbol}>
+            <td><span className="paper-trading-mono">{row.symbol}</span></td>
+            <td className={row.error === undefined ? 'is-up' : 'is-down'}>
+              {row.error === undefined ? t('basket.rowStatus.ok') : row.error}
+            </td>
+            <td className="is-num paper-trading-note">{row.order === undefined ? '' : t(`orderStatus.${row.order.status}`)}</td>
+          </tr>)}</tbody>
+        </table>
+      </div>
+      <p className="paper-trading-note">{t('basket.cashAfter')} {money(result.cashAfterCents / 100)}</p>
+    </section>}
+  </div>
+}
+
+/** 每账户整页笔记：本地文件、自动保存；模型没有读写入口。 */
+function NotesTab(props: { board: Board; snapshot: BoardSnapshot; t: MessageScope['t'] }) {
+  const { board, snapshot, t } = props
+  const saved = snapshot.note?.text ?? ''
+  const [text, setText] = useState(saved)
+  const [dirty, setDirty] = useState(false)
+  const [state, setState] = useState<'saved' | 'saving' | 'error'>('saved')
+
+  useEffect(() => {
+    void board.loadNote()
+  }, [snapshot.accountId])
+
+  useEffect(() => {
+    if (!dirty) setText(saved)
+  }, [saved, dirty])
+
+  useEffect(() => {
+    if (!dirty || text === saved) return
+    const timer = setTimeout(() => {
+      setState('saving')
+      void board.saveNote(text).then(code => {
+        if (code === '') {
+          setDirty(false)
+          setState('saved')
+        } else {
+          setState('error')
+        }
+      })
+    }, 800)
+    return () => clearTimeout(timer)
+  }, [text, saved, dirty])
+
+  return <div className="paper-trading-notes">
+    <div className="paper-trading-review-head">
+      <h4 className="paper-trading-dialog-subtitle">{t('notes.title')}</h4>
+      <span className="paper-trading-note">
+        {state === 'saving' ? t('notes.saving') : state === 'error' ? t('notes.saveFailed') : t('notes.saved')}
+        {snapshot.note === null ? '' : ` · ${text.length}/${snapshot.note.maxBytes}`}
+      </span>
+    </div>
+    <Textarea value={text} rows={16} placeholder={t('notes.placeholder')} aria-label={t('notes.title')}
+      disabled={snapshot.noteBusy && !dirty}
+      onChange={event => { setText(event.target.value); setDirty(true) }}
+      onBlur={() => {
+        if (!dirty) return
+        setState('saving')
+        void board.saveNote(text).then(code => {
+          if (code === '') { setDirty(false); setState('saved') } else setState('error')
+        })
+      }} />
+    <p className="paper-trading-note">{t('notes.hint')}</p>
+  </div>
+}
+
 function OrdersTable(props: {
   orders: readonly OrderView[]
   money: (value: number) => string
@@ -1884,7 +2053,7 @@ function ReviewBlock(props: {
     <section className="paper-trading-stats">
       <Stat label={props.t('review.trades')} value={props.n(review.tradeCount)} />
       <Stat label={props.t('review.realizedPnl')} value={props.money(review.realizedPnl)} tone={review.realizedPnl} />
-      <Stat label={props.t('review.maxDrawdown')} value={props.n(review.maxDrawdownPct / 100, { style: 'percent', minimumFractionDigits: 2, maximumFractionDigits: 2 })} />
+      <Stat label={props.t('review.maxDrawdown')} value={props.n(review.maxDrawdownPct, { style: 'percent', minimumFractionDigits: 2, maximumFractionDigits: 2 })} />
       <Stat label={props.t('review.fees')} value={props.money(review.totalFees)} />
     </section>
     <section className="paper-trading-chart" aria-label={props.t('review.equity')}>

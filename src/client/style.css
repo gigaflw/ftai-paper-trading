@@ -801,3 +801,97 @@
 .paper-trading-futures .paper-trading-stats {
   padding: 0 0 12px;
 }
+
+/* ------------------------------------------------------------ 批量与笔记 */
+
+.paper-trading-basket,
+.paper-trading-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.paper-trading-basket-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 720px;
+}
+
+.paper-trading-basket-form textarea {
+  width: 100%;
+  min-height: 120px;
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+}
+
+.paper-trading-basket-totals {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  padding: 0;
+}
+
+.paper-trading-basket-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.paper-trading-notes textarea {
+  width: 100%;
+  min-height: 360px;
+  line-height: 1.6;
+}
+
+/* 图表刻度：纵轴两行上下排，横轴两端对齐。 */
+.paper-trading-chart-scale {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
+
+.paper-trading-chart-scale-x {
+  flex-direction: row;
+  justify-content: space-between;
+  width: 100%;
+}
+
+/* 对比图：左侧纵轴、内部网格与横轴日期。 */
+.paper-trading-compare-chart {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.paper-trading-compare-y {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 2px 0 20px;
+  font-size: 11px;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+}
+
+.paper-trading-compare-plot {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.paper-trading-compare-plot svg {
+  width: 100%;
+  height: 220px;
+  display: block;
+}
+
+.paper-trading-compare-x {
+  display: flex;
+  justify-content: space-between;
+  padding-top: 6px;
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
