@@ -1,7 +1,7 @@
 {
   "name": "@clrstn2830h/plugin-paper-trading",
   "description": "FtAi Desktop 模拟交易插件：本地事件账本的 A 股 / 期货模拟交易（交易、持仓、订单、复盘），行情按 FTShare 短期令牌接入。",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "type": "module",
   "main": "lib/index.js",
   "exports": {

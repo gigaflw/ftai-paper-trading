@@ -2,7 +2,7 @@
 
 本文件按 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 组织，版本号遵循 SemVer。
 
-## [Unreleased]
+## [0.7.0] - 2026-11-27
 
 ### Added
 
