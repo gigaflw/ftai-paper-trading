@@ -101,6 +101,12 @@ const steps = [
   {
     name: '默认标的自动加载（报价 + 日 K）',
     async run() {
+      // 上一次截图可能把 K 线栏收起（偏好会持久化），先展开再断言。
+      const expand = page.getByRole('button', { name: '展开' })
+      if (await expand.count() > 0) {
+        await expand.first().click()
+        await page.waitForTimeout(500)
+      }
       assert(await input().inputValue() === '600519', `默认代码应为 600519，实际 ${await input().inputValue()}`)
       const text = await waitUntil(async () => {
         const content = await quoteBox().innerText().catch(() => '')
