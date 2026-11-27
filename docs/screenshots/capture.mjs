@@ -73,6 +73,8 @@ await page.locator('.paper-trading-compare').waitFor({ state: 'visible' })
 await page.getByRole('button', { name: '收起' }).click().catch(() => {})
 await page.waitForTimeout(1500)
 await shot('compare.png')
+// 收起只是为截图，展开回去，避免把折叠状态留给下一次 e2e。
+await page.getByRole('button', { name: '展开' }).click().catch(() => {})
 
 await page.getByRole('button', { name: '期货', exact: true }).click()
 await page.locator('.paper-trading-futures').waitFor({ state: 'visible' })
